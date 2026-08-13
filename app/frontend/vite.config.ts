@@ -4,12 +4,13 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
-  server: {
+server: {
     port: 5173,
-    host: true,
+    host: '0.0.0.0',
+    strictPort: true,
   },
   build: {
     outDir: 'dist',
