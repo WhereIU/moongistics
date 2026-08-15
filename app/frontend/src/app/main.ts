@@ -1,6 +1,17 @@
-import { GameApp } from '@/app/game';
+import { GameApp } from './GameApp';
 
-const appElement = document.getElementById('app') || document.body;
-const game = new GameApp();
+const container =
+  document.getElementById('app');
 
-game.init(appElement).catch(console.error);
+if (!container) {
+  throw new Error(
+    'Application container not found',
+  );
+}
+
+const game =
+  new GameApp();
+
+await game.init(
+  container,
+);

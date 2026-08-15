@@ -1,46 +1,56 @@
-import { Assets, Cache, Texture, Rectangle } from 'pixi.js';
-import { PrototypeRegistry } from '@/entities/registry/PrototypeRegistry';
+import { Assets, Cache, Rectangle, Texture } from 'pixi.js';
+import { PrototypeRegistry } from '@/prototypes/registry/PrototypeRegistry';
 import { generateGridFrames } from '@/shared/utils/spritesheet';
-import type { TilePrototype, FrameRect } from '@/entities/base/types';
+import type { FrameRect, TilePrototype } from '@/prototypes/base/types';
+import { isTilePrototype } from '@/prototypes/base/types';
 
-export async function loadGameAssets(): Promise<void> {
-  const allPrototypes = PrototypeRegistry.getAll();
-  const loadPromises: Promise<unknown>[] = [];
+function cacheTileFrames(proto: TilePrototype, baseTexture: Texture): void {
+  let frames: FrameRect[] = [];
 
-  for (const proto of allPrototypes) {
-    if (proto.textureUrl) {
-      Assets.add({
-        alias: proto.textureKey,
-        src: proto.textureUrl,
-      });
-      loadPromises.push(Assets.load(proto.textureKey));
-    }
+  if (proto.gridConfig) {
+    frames = generateGridFrames(baseTexture.width, baseTexture.height, proto.gridConfig);
+  } else if (proto.frames) {
+    frames = proto.frames;
   }
 
-  await Promise.all(loadPromises);
+  frames.forEach((frame, index) => {
+    const texture = new Texture({
+      source: baseTexture.source,
+      frame: new Rectangle(frame.x, frame.y, frame.w, frame.h),
+    });
 
-  for (const proto of allPrototypes) {
-    const tileProto = proto as TilePrototype;
+    Cache.set(`${proto.textureKey}_${index}`, texture);
+  });
+}
+
+export async function loadGameAssets(): Promise<void> {
+  const prototypes = PrototypeRegistry.getAll();
+  const aliases = new Set<string>();
+
+  for (const proto of prototypes) {
+    if (!proto.textureUrl || aliases.has(proto.textureKey)) continue;
+
+    Assets.add({
+      alias: proto.textureKey,
+      src: proto.textureUrl,
+    });
+    aliases.add(proto.textureKey);
+  }
+
+  await Promise.all(
+    [...aliases].map((textureKey) => Assets.load(textureKey)),
+  );
+
+  for (const proto of prototypes) {
+    if (!isTilePrototype(proto)) continue;
+
     const baseTexture = Assets.get<Texture>(proto.textureKey);
-
     if (!baseTexture) continue;
 
-    let framesToCut: FrameRect[] = [];
-
-    if (tileProto.gridConfig) {
-      framesToCut = generateGridFrames(baseTexture.width, tileProto.gridConfig);
-    } 
-    else if (tileProto.frames) {
-      framesToCut = tileProto.frames;
+    if (proto.gridConfig || proto.frames) {
+      cacheTileFrames(proto, baseTexture);
     }
 
-    framesToCut.forEach((frame, index) => {
-      const subTexture = new Texture({
-        source: baseTexture.source,
-        frame: new Rectangle(frame.x, frame.y, frame.w, frame.h),
-      });
-
-      Cache.set(`${proto.textureKey}_${index}`, subTexture);
-    });
+    baseTexture.source.scaleMode = 'nearest';
   }
 }
