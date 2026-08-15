@@ -33,7 +33,7 @@ export class MockWorldApi implements GameApi {
           variant: Math.floor(
             Math.random() * 16,
           ),
-
+          
           playable: true,
         });
       }

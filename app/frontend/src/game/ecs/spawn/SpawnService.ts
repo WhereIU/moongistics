@@ -39,6 +39,7 @@ export class SpawnService {
       {
         type: RenderType.Sprite,
         assetKey: data.baseType,
+        variant: data.variant,
       },
     );
 

@@ -10,6 +10,7 @@ export type RenderTypeId =
 export const Renderable = {
   assetKey: [] as string[],
   type: [] as RenderTypeId[],
+  variant: [] as number[],
   visible: [] as number[],
   layer: [] as number[],
 };

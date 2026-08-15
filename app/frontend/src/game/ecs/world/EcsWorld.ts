@@ -120,6 +120,7 @@ export class EcsWorldFacade {
     data: {
       type: RenderTypeId;
       assetKey: string;
+      variant?: number;
       visible?: boolean;
       layer?: number;
     },
@@ -128,10 +129,10 @@ export class EcsWorldFacade {
 
     Renderable.type[entity] = data.type;
     Renderable.assetKey[entity] = data.assetKey;
+    Renderable.variant[entity] = data.variant ?? 0;
     Renderable.visible[entity] =
       data.visible === false ? 0 : 1;
-    Renderable.layer[entity] =
-      data.layer ?? 0;
+    Renderable.layer[entity] = data.layer ?? 0;
   }
 
   public addAnimation(
@@ -251,14 +252,7 @@ export class EcsWorldFacade {
     };
   }
 
-  public getRenderable(
-    entity: EcsEntity,
-  ): {
-    type: RenderTypeId;
-    assetKey: string;
-    visible: boolean;
-    layer: number;
-  } | null {
+  public getRenderable(entity: EcsEntity) {
     if (!this.hasRenderable(entity)) {
       return null;
     }
@@ -266,6 +260,7 @@ export class EcsWorldFacade {
     return {
       type: Renderable.type[entity],
       assetKey: Renderable.assetKey[entity],
+      variant: Renderable.variant[entity],
       visible: Renderable.visible[entity] !== 0,
       layer: Renderable.layer[entity],
     };

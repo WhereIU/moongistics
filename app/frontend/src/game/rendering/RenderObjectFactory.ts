@@ -1,5 +1,7 @@
 import {
   AnimatedSprite,
+  Assets,
+  Cache,
   Container,
   Sprite,
   Texture,
@@ -17,7 +19,10 @@ export interface RenderObjectData {
 }
 
 export class RenderObjectFactory {
-  public create(data: RenderObjectData): Container | Sprite | AnimatedSprite {
+  public create(
+    data: RenderObjectData,
+  ): Container | Sprite | AnimatedSprite {
+
     switch (data.type) {
       case RenderType.Sprite:
         return this.createSprite(data);
@@ -35,13 +40,17 @@ export class RenderObjectFactory {
     }
   }
 
-  private createSprite(data: RenderObjectData): Sprite {
-    const texture = this.resolveTexture(
-      data.assetKey,
-      data.variant,
-    );
+  private createSprite(
+    data: RenderObjectData,
+  ): Sprite {
+    const texture =
+      this.resolveTexture(
+        data.assetKey,
+        data.variant,
+      );
 
-    const sprite = new Sprite(texture);
+    const sprite =
+      new Sprite(texture);
 
     sprite.anchor.set(0.5);
 
@@ -51,14 +60,16 @@ export class RenderObjectFactory {
   private createAnimatedSprite(
     data: RenderObjectData,
   ): AnimatedSprite {
-    const variant = data.variant ?? 0;
+    const texture =
+      this.resolveTexture(
+        data.assetKey,
+        data.variant,
+      );
 
-    const texture = this.resolveTexture(
-      data.assetKey,
-      variant,
-    );
-
-    const sprite = new AnimatedSprite([texture]);
+    const sprite =
+      new AnimatedSprite([
+        texture,
+      ]);
 
     sprite.anchor.set(0.5);
 
@@ -70,14 +81,35 @@ export class RenderObjectFactory {
     variant?: number,
   ): Texture {
     if (variant !== undefined) {
-      const variantKey = `${assetKey}_${variant}`;
-      const variantTexture = Texture.from(variantKey);
+      const variantKey =
+        `${assetKey}_${variant}`;
 
-      if (variantTexture !== Texture.EMPTY) {
-        return variantTexture;
+      const cachedTexture =
+        Cache.get<Texture>(
+          variantKey,
+        );
+
+      if (cachedTexture) {
+        return cachedTexture;
       }
+
+      throw new Error(
+        `[RenderObjectFactory] Variant texture not found in Cache: ${variantKey}`,
+      );
     }
 
-    return Texture.from(assetKey);
+    const texture =
+      Assets.get<Texture>(
+        assetKey,
+      );
+
+
+    if (!texture) {
+      throw new Error(
+        `[RenderObjectFactory] Base texture not found: ${assetKey}`,
+      );
+    }
+
+    return texture;
   }
 }
