@@ -25,6 +25,13 @@ export class RenderSystem {
     const entities =
       queries.renderable(world.raw);
 
+    const activeEntities =
+      new Set<number>(entities);
+
+    this.renderWorld.removeMissingEntities(
+      activeEntities,
+    );
+
     for (
       const entity of entities
     ) {

@@ -123,4 +123,14 @@ export class RenderWorld {
 
     this.objects.clear();
   }
+
+  public removeMissingEntities(
+    activeEntities: Set<number>,
+  ): void {
+    for (const entity of this.objects.keys()) {
+      if (!activeEntities.has(entity)) {
+        this.removeEntity(entity);
+      }
+    }
+  }
 }
