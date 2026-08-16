@@ -55,8 +55,8 @@ export class RenderSystem {
             assetKey:
               renderable.assetKey,
 
-            variant:
-              renderable.variant,
+            visualVariant:
+              renderable.visualVariant,
           },
         },
       );

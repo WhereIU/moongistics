@@ -15,14 +15,15 @@ import {
 export interface RenderObjectData {
   type: RenderTypeId;
   assetKey: string;
-  variant?: number;
+
+  // Normalized ECS value.
+  visualVariant: number;
 }
 
 export class RenderObjectFactory {
   public create(
     data: RenderObjectData,
   ): Container | Sprite | AnimatedSprite {
-
     switch (data.type) {
       case RenderType.Sprite:
         return this.createSprite(data);
@@ -46,7 +47,7 @@ export class RenderObjectFactory {
     const texture =
       this.resolveTexture(
         data.assetKey,
-        data.variant,
+        data.visualVariant,
       );
 
     const sprite =
@@ -63,7 +64,7 @@ export class RenderObjectFactory {
     const texture =
       this.resolveTexture(
         data.assetKey,
-        data.variant,
+        data.visualVariant,
       );
 
     const sprite =
@@ -78,38 +79,33 @@ export class RenderObjectFactory {
 
   private resolveTexture(
     assetKey: string,
-    variant?: number,
+    visualVariant: number,
   ): Texture {
-    if (variant !== undefined) {
-      const variantKey =
-        `${assetKey}_${variant}`;
+    const variantKey =
+      `${assetKey}_${visualVariant}`;
 
-      const cachedTexture =
-        Cache.get<Texture>(
-          variantKey,
-        );
-
-      if (cachedTexture) {
-        return cachedTexture;
-      }
-
-      throw new Error(
-        `[RenderObjectFactory] Variant texture not found in Cache: ${variantKey}`,
+    const cachedTexture =
+      Cache.get<Texture>(
+        variantKey,
       );
+
+    if (cachedTexture) {
+      return cachedTexture;
     }
 
-    const texture =
+    // No variant texture exists.
+    // Use the base asset as the fallback.
+    const baseTexture =
       Assets.get<Texture>(
         assetKey,
       );
 
-
-    if (!texture) {
+    if (!baseTexture) {
       throw new Error(
-        `[RenderObjectFactory] Base texture not found: ${assetKey}`,
+        `[RenderObjectFactory] Texture not found: ${assetKey}`,
       );
     }
 
-    return texture;
+    return baseTexture;
   }
 }

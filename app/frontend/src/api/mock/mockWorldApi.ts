@@ -30,10 +30,11 @@ export class MockWorldApi implements GameApi {
 
           baseType: 'lunar_regolith',
 
-          variant: Math.floor(
-            Math.random() * 16,
-          ),
-          
+          visualVariant:
+            Math.floor(
+              Math.random() * 16,
+            ),
+
           playable: true,
         });
       }

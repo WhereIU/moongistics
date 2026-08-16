@@ -3,7 +3,7 @@ export interface WorldTileData {
   y: number;
 
   baseType: string;
-  variant: number;
+  visualVariant?: number;
 
   playable: boolean;
 }

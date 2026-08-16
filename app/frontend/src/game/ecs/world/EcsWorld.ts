@@ -33,9 +33,11 @@ export interface EcsRuntime {
 
 export type EcsEntity = number;
 
-export type RawEcsWorld = ReturnType<typeof createWorld>;
+export type RawEcsWorld =
+  ReturnType<typeof createWorld>;
 
-export type EcsWorld = RawEcsWorld & EcsRuntime;
+export type EcsWorld =
+  RawEcsWorld & EcsRuntime;
 
 export function createEcsWorld(): EcsWorld {
   return createWorld({
@@ -49,7 +51,6 @@ export function createEcsWorld(): EcsWorld {
   }) as EcsWorld;
 }
 
-
 /**
  * Application-level facade over bitECS.
  *
@@ -62,7 +63,6 @@ export class EcsWorldFacade {
   public constructor(raw: EcsWorld) {
     this.raw = raw;
   }
-
 
   // ---------------------------------------------------------------------------
   // Entities
@@ -86,7 +86,11 @@ export class EcsWorldFacade {
     y: number,
     rotation = 0,
   ): void {
-    addComponent(this.raw, entity, Transform);
+    addComponent(
+      this.raw,
+      entity,
+      Transform,
+    );
 
     Transform.x[entity] = x;
     Transform.y[entity] = y;
@@ -98,7 +102,11 @@ export class EcsWorldFacade {
     x = 0,
     y = 0,
   ): void {
-    addComponent(this.raw, entity, Velocity);
+    addComponent(
+      this.raw,
+      entity,
+      Velocity,
+    );
 
     Velocity.x[entity] = x;
     Velocity.y[entity] = y;
@@ -109,7 +117,11 @@ export class EcsWorldFacade {
     type: string,
     id: string,
   ): void {
-    addComponent(this.raw, entity, PrototypeRef);
+    addComponent(
+      this.raw,
+      entity,
+      PrototypeRef,
+    );
 
     PrototypeRef.type[entity] = type;
     PrototypeRef.id[entity] = id;
@@ -120,19 +132,32 @@ export class EcsWorldFacade {
     data: {
       type: RenderTypeId;
       assetKey: string;
-      variant?: number;
+      visualVariant?: number;
       visible?: boolean;
       layer?: number;
     },
   ): void {
-    addComponent(this.raw, entity, Renderable);
+    addComponent(
+      this.raw,
+      entity,
+      Renderable,
+    );
 
-    Renderable.type[entity] = data.type;
-    Renderable.assetKey[entity] = data.assetKey;
-    Renderable.variant[entity] = data.variant ?? 0;
+    Renderable.type[entity] =
+      data.type;
+
+    Renderable.assetKey[entity] =
+      data.assetKey;
+
+    // Normalize optional input at the ECS boundary.
+    Renderable.visualVariant[entity] =
+      data.visualVariant ?? 0;
+
     Renderable.visible[entity] =
       data.visible === false ? 0 : 1;
-    Renderable.layer[entity] = data.layer ?? 0;
+
+    Renderable.layer[entity] =
+      data.layer ?? 0;
   }
 
   public addAnimation(
@@ -145,7 +170,11 @@ export class EcsWorldFacade {
       loop?: boolean;
     },
   ): void {
-    addComponent(this.raw, entity, Animation);
+    addComponent(
+      this.raw,
+      entity,
+      Animation,
+    );
 
     Animation.frame[entity] =
       data.frame ?? 0;
@@ -217,15 +246,15 @@ export class EcsWorldFacade {
   public removeRenderable(
     entity: EcsEntity,
   ): void {
-    if (
-      this.hasRenderable(entity)
-    ) {
-      removeComponent(
-        this.raw,
-        entity,
-        Renderable,
-      );
+    if (!this.hasRenderable(entity)) {
+      return;
     }
+
+    removeComponent(
+      this.raw,
+      entity,
+      Renderable,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -239,9 +268,7 @@ export class EcsWorldFacade {
     y: number;
     rotation: number;
   } | null {
-    if (
-      !this.hasPosition(entity)
-    ) {
+    if (!this.hasPosition(entity)) {
       return null;
     }
 
@@ -252,7 +279,15 @@ export class EcsWorldFacade {
     };
   }
 
-  public getRenderable(entity: EcsEntity) {
+  public getRenderable(
+    entity: EcsEntity,
+  ): {
+    type: RenderTypeId;
+    assetKey: string;
+    visualVariant: number;
+    visible: boolean;
+    layer: number;
+  } | null {
     if (!this.hasRenderable(entity)) {
       return null;
     }
@@ -260,9 +295,16 @@ export class EcsWorldFacade {
     return {
       type: Renderable.type[entity],
       assetKey: Renderable.assetKey[entity],
-      variant: Renderable.variant[entity],
-      visible: Renderable.visible[entity] !== 0,
-      layer: Renderable.layer[entity],
+
+      // Always a number inside ECS.
+      visualVariant:
+        Renderable.visualVariant[entity],
+
+      visible:
+        Renderable.visible[entity] !== 0,
+
+      layer:
+        Renderable.layer[entity],
     };
   }
 

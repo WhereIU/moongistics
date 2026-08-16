@@ -43,7 +43,7 @@ export class GameWorld {
         y: tile.y,
 
         baseType: tile.baseType,
-        variant: tile.variant,
+        visualVariant: tile.visualVariant,
 
         playable: tile.playable,
       });

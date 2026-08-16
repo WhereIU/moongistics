@@ -10,15 +10,19 @@ import {
 export interface TileSpawnData {
   x: number;
   y: number;
+
   baseType: string;
-  variant: number;
+  visualVariant?: number;
+
   playable: boolean;
 }
 
 export class SpawnService {
   private readonly world: EcsWorldFacade;
 
-  public constructor(world: EcsWorldFacade) {
+  public constructor(
+    world: EcsWorldFacade,
+  ) {
     this.world = world;
   }
 
@@ -38,8 +42,12 @@ export class SpawnService {
       entity,
       {
         type: RenderType.Sprite,
-        assetKey: data.baseType,
-        variant: data.variant,
+
+        assetKey:
+          data.baseType,
+
+        visualVariant:
+          data.visualVariant,
       },
     );
 

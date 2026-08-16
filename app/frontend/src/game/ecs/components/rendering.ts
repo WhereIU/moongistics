@@ -9,8 +9,8 @@ export type RenderTypeId =
 
 export const Renderable = {
   assetKey: [] as string[],
+  visualVariant: [] as number[],
   type: [] as RenderTypeId[],
-  variant: [] as number[],
   visible: [] as number[],
   layer: [] as number[],
 };

@@ -3,7 +3,9 @@ import {
   type ContainerChild,
 } from 'pixi.js';
 
-import type { RenderObjectFactory } from './RenderObjectFactory';
+import type {
+  RenderObjectFactory,
+} from './RenderObjectFactory';
 
 import type {
   RenderTypeId,
@@ -13,13 +15,14 @@ export interface RenderEntityState {
   x: number;
   y: number;
   rotation: number;
+
   visible: boolean;
   layer: number;
 
   renderable: {
     type: RenderTypeId;
     assetKey: string;
-    variant?: number;
+    visualVariant: number;
   };
 }
 

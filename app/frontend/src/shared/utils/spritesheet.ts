@@ -1,4 +1,7 @@
-import type { FrameRect, SpritesheetGrid } from '@/prototypes/base/types';
+import type {
+  FrameRect,
+  SpritesheetGrid,
+} from '@/prototypes/base/types';
 
 export function generateGridFrames(
   imageWidth: number,
@@ -12,24 +15,61 @@ export function generateGridFrames(
     count,
   } = config;
 
-  if (frameWidth <= 0 || frameHeight <= 0) return [];
+  if (
+    frameWidth <= 0 ||
+    frameHeight <= 0
+  ) {
+    return [];
+  }
 
-  const maxCols = Math.floor(imageWidth / frameWidth);
-  const maxRows = Math.max(0, Math.floor((imageHeight - startY) / frameHeight));
-  const availableFrames = maxCols * maxRows;
-  const totalFrames = count === undefined
-    ? availableFrames
-    : Math.min(count, availableFrames);
+  const maxCols =
+    Math.floor(
+      imageWidth / frameWidth,
+    );
+
+  const maxRows =
+    Math.max(
+      0,
+      Math.floor(
+        (imageHeight - startY) /
+        frameHeight,
+      ),
+    );
+
+  const availableFrames =
+    maxCols * maxRows;
+
+  const totalFrames =
+    count === undefined
+      ? availableFrames
+      : Math.min(
+          count,
+          availableFrames,
+        );
 
   const frames: FrameRect[] = [];
 
-  for (let index = 0; index < totalFrames; index += 1) {
-    const column = index % maxCols;
-    const row = Math.floor(index / maxCols);
+  for (
+    let index = 0;
+    index < totalFrames;
+    index += 1
+  ) {
+    const column =
+      index % maxCols;
+
+    const row =
+      Math.floor(
+        index / maxCols,
+      );
 
     frames.push({
-      x: column * frameWidth,
-      y: startY + row * frameHeight,
+      x:
+        column * frameWidth,
+
+      y:
+        startY +
+        row * frameHeight,
+
       w: frameWidth,
       h: frameHeight,
     });
