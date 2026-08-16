@@ -1,7 +1,16 @@
-import { Animation } from '../../components';
+import {
+  Animation,
+} from '../../components';
+
 import { queries } from '../../queries';
-import type { EcsSystem } from '../../world/types';
-import type { EcsWorldFacade } from '../../world/EcsWorld';
+
+import type {
+  EcsSystem,
+} from '../../world/types';
+
+import type {
+  EcsWorldFacade,
+} from '../../world/EcsWorld';
 
 export class AnimationSystem implements EcsSystem {
   public readonly name = 'animation';
@@ -12,8 +21,15 @@ export class AnimationSystem implements EcsSystem {
   ): void {
     const rawWorld = world.raw;
 
-    for (const entity of queries.animated(rawWorld)) {
-      if (Animation.playing[entity] !== 1) continue;
+    for (
+      const entity of queries.animated(rawWorld)
+    ) {
+      if (
+        Animation.playing[entity] !== 1
+      ) {
+        continue;
+      }
+
       if (
         Animation.frameCount[entity] <= 0 ||
         Animation.fps[entity] <= 0
@@ -21,10 +37,13 @@ export class AnimationSystem implements EcsSystem {
         continue;
       }
 
-      Animation.elapsedSeconds[entity] += deltaSeconds;
+      Animation.elapsedSeconds[entity] +=
+        deltaSeconds;
 
       const frameDuration =
         1 / Animation.fps[entity];
+
+      let frameChanged = false;
 
       while (
         Animation.elapsedSeconds[entity] >=
@@ -34,12 +53,15 @@ export class AnimationSystem implements EcsSystem {
           frameDuration;
 
         Animation.frame[entity] += 1;
+        frameChanged = true;
 
         if (
           Animation.frame[entity] >=
           Animation.frameCount[entity]
         ) {
-          if (Animation.loop[entity] === 1) {
+          if (
+            Animation.loop[entity] === 1
+          ) {
             Animation.frame[entity] = 0;
           } else {
             Animation.frame[entity] =
@@ -49,6 +71,10 @@ export class AnimationSystem implements EcsSystem {
             break;
           }
         }
+      }
+
+      if (frameChanged) {
+        world.markRenderDirty(entity);
       }
     }
   }

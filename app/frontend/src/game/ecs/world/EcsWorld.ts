@@ -15,6 +15,7 @@ import {
   Velocity,
   PrototypeRef,
   Renderable,
+  RenderDirty,
   Animation,
   type RenderTypeId,
 } from '../components';
@@ -142,13 +143,18 @@ export class EcsWorldFacade {
       Renderable,
     );
 
+    addComponent(
+      this.raw,
+      entity,
+      RenderDirty,
+    );
+
     Renderable.type[entity] =
       data.type;
 
     Renderable.assetKey[entity] =
       data.assetKey;
 
-    // Normalize optional input at the ECS boundary.
     Renderable.visualVariant[entity] =
       data.visualVariant ?? 0;
 
@@ -157,6 +163,12 @@ export class EcsWorldFacade {
 
     Renderable.layer[entity] =
       data.layer ?? 0;
+
+    /*
+     * The entity has just received a Renderable,
+     * but RenderWorld does not have its object yet.
+     */
+    RenderDirty.dirty[entity] = 1;
   }
 
   public addAnimation(
@@ -192,6 +204,57 @@ export class EcsWorldFacade {
 
     Animation.loop[entity] =
       data.loop === false ? 0 : 1;
+
+    /*
+     * Adding animation changes the visual state
+     * of an already-renderable entity.
+     */
+    if (this.hasRenderable(entity)) {
+      this.markRenderDirty(entity);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render dirty
+  // ---------------------------------------------------------------------------
+
+  public hasRenderDirty(
+    entity: EcsEntity,
+  ): boolean {
+    return hasComponent(
+      this.raw,
+      entity,
+      RenderDirty,
+    );
+  }
+
+  public markRenderDirty(
+    entity: EcsEntity,
+  ): void {
+    if (!this.hasRenderDirty(entity)) {
+      return;
+    }
+
+    RenderDirty.dirty[entity] = 1;
+  }
+
+  public clearRenderDirty(
+    entity: EcsEntity,
+  ): void {
+    if (!this.hasRenderDirty(entity)) {
+      return;
+    }
+
+    RenderDirty.dirty[entity] = 0;
+  }
+
+  public isRenderDirty(
+    entity: EcsEntity,
+  ): boolean {
+    return (
+      this.hasRenderDirty(entity) &&
+      RenderDirty.dirty[entity] === 1
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -249,6 +312,14 @@ export class EcsWorldFacade {
       return;
     }
 
+    if (this.hasRenderDirty(entity)) {
+      removeComponent(
+        this.raw,
+        entity,
+        RenderDirty,
+      );
+    }
+
     removeComponent(
       this.raw,
       entity,
@@ -294,14 +365,10 @@ export class EcsWorldFacade {
     return {
       type: Renderable.type[entity],
       assetKey: Renderable.assetKey[entity],
-
-      // Always a number inside ECS.
       visualVariant:
         Renderable.visualVariant[entity],
-
       visible:
         Renderable.visible[entity] !== 0,
-
       layer:
         Renderable.layer[entity],
     };

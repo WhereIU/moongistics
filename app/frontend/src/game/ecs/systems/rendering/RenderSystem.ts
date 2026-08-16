@@ -1,10 +1,14 @@
-import { queries } from '../../queries';
+import {
+  queries,
+} from '../../queries';
 
 import type {
   EcsWorldFacade,
 } from '../../world/EcsWorld';
 
-import { RenderWorld } from '@/game/rendering/RenderWorld';
+import {
+  RenderWorld,
+} from '@/game/rendering/RenderWorld';
 
 export class RenderSystem {
   private readonly renderWorld: RenderWorld;
@@ -18,11 +22,18 @@ export class RenderSystem {
   public sync(
     world: EcsWorldFacade,
   ): void {
-    const entities = queries.renderable(world.raw);
+    const entities =
+      queries.renderable(world.raw);
 
     for (
       const entity of entities
     ) {
+      if (
+        !world.isRenderDirty(entity)
+      ) {
+        continue;
+      }
+
       const position =
         world.getPosition(entity);
 
@@ -61,6 +72,8 @@ export class RenderSystem {
           },
         },
       );
+
+      world.clearRenderDirty(entity);
     }
   }
 }

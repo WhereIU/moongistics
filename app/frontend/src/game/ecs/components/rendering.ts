@@ -15,6 +15,17 @@ export const Renderable = {
   layer: [] as number[],
 };
 
+/**
+ * Marks an entity whose visual state must be synchronized
+ * with the rendering world.
+ *
+ * 1 = dirty, render state is outdated
+ * 0 = clean, render state is synchronized
+ */
+export const RenderDirty = {
+  dirty: [] as number[],
+};
+
 export const Animation = {
   frame: [] as number[],
   frameCount: [] as number[],
