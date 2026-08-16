@@ -145,6 +145,8 @@ export class GameApp {
     this.renderSystem =
       new RenderSystem(
         this.renderWorld,
+        this.gameWorld.data.tileSize,
+        1,
       );
 
     const simulation =
@@ -198,6 +200,10 @@ export class GameApp {
     this.renderSystem.sync(
       this.gameWorld.ecs,
       0,
+      this.cameraControl.getViewportBounds(
+        window.innerWidth,
+        window.innerHeight,
+      ),
     );
   }
 
@@ -208,14 +214,21 @@ export class GameApp {
       return;
     }
 
-  const alpha =
-    this.gameLoop.update(
-      ticker,
-    );
+    const alpha =
+      this.gameLoop.update(
+        ticker,
+      );
 
-  this.renderSystem.sync(
-    this.gameWorld.ecs,
-    alpha,
-  );
+    const viewport =
+      this.cameraControl.getViewportBounds(
+        window.innerWidth,
+        window.innerHeight,
+      );
+
+    this.renderSystem.sync(
+      this.gameWorld.ecs,
+      alpha,
+      viewport,
+    );
   }
 }

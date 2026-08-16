@@ -77,6 +77,21 @@ export class RenderWorld {
     );
   }
 
+  public setCulled(
+    entity: number,
+    culled: boolean,
+  ): void {
+    const object =
+      this.objects.get(entity);
+
+    if (!object) {
+      return;
+    }
+
+    object.visible =
+      !culled;
+  }
+
   private updateObject(
     object: ContainerChild,
     state: RenderEntityState,
@@ -127,8 +142,13 @@ export class RenderWorld {
   public removeMissingEntities(
     activeEntities: Set<number>,
   ): void {
-    for (const entity of this.objects.keys()) {
-      if (!activeEntities.has(entity)) {
+    for (
+      const entity
+      of this.objects.keys()
+    ) {
+      if (
+        !activeEntities.has(entity)
+      ) {
         this.removeEntity(entity);
       }
     }
