@@ -2,6 +2,10 @@ import {
   queries,
 } from '../../queries';
 
+import {
+  Transform,
+} from '../../components';
+
 import type {
   EcsWorldFacade,
 } from '../../world/EcsWorld';
@@ -21,6 +25,7 @@ export class RenderSystem {
 
   public sync(
     world: EcsWorldFacade,
+    alpha: number,
   ): void {
     const entities =
       queries.renderable(world.raw);
@@ -35,12 +40,6 @@ export class RenderSystem {
     for (
       const entity of entities
     ) {
-      if (
-        !world.isRenderDirty(entity)
-      ) {
-        continue;
-      }
-
       const position =
         world.getPosition(entity);
 
@@ -54,12 +53,36 @@ export class RenderSystem {
         continue;
       }
 
+      const interpolatedX =
+        Transform.previousX[entity] +
+        (
+          Transform.x[entity] -
+          Transform.previousX[entity]
+        ) *
+        alpha;
+
+      const interpolatedY =
+        Transform.previousY[entity] +
+        (
+          Transform.y[entity] -
+          Transform.previousY[entity]
+        ) *
+        alpha;
+
+      const interpolatedRotation =
+        Transform.previousRotation[entity] +
+        (
+          Transform.rotation[entity] -
+          Transform.previousRotation[entity]
+        ) *
+        alpha;
+
       this.renderWorld.syncEntity(
         entity,
         {
-          x: position.x,
-          y: position.y,
-          rotation: position.rotation,
+          x: interpolatedX,
+          y: interpolatedY,
+          rotation: interpolatedRotation,
 
           visible:
             renderable.visible,
@@ -80,7 +103,11 @@ export class RenderSystem {
         },
       );
 
-      world.clearRenderDirty(entity);
+      if (
+        world.isRenderDirty(entity)
+      ) {
+        world.clearRenderDirty(entity);
+      }
     }
   }
 }

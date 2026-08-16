@@ -60,7 +60,9 @@ export function createEcsWorld(): EcsWorld {
 export class EcsWorldFacade {
   public readonly raw: EcsWorld;
 
-  public constructor(raw: EcsWorld) {
+  public constructor(
+    raw: EcsWorld,
+  ) {
     this.raw = raw;
   }
 
@@ -72,8 +74,13 @@ export class EcsWorldFacade {
     return addEntity(this.raw);
   }
 
-  public destroyEntity(entity: EcsEntity): void {
-    removeEntity(this.raw, entity);
+  public destroyEntity(
+    entity: EcsEntity,
+  ): void {
+    removeEntity(
+      this.raw,
+      entity,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -95,6 +102,12 @@ export class EcsWorldFacade {
     Transform.x[entity] = x;
     Transform.y[entity] = y;
     Transform.rotation[entity] = rotation;
+
+    // Initial render state has no previous simulation tick.
+    // Therefore previous == current.
+    Transform.previousX[entity] = x;
+    Transform.previousY[entity] = y;
+    Transform.previousRotation[entity] = rotation;
   }
 
   public addVelocity(
@@ -164,10 +177,6 @@ export class EcsWorldFacade {
     Renderable.layer[entity] =
       data.layer ?? 0;
 
-    /*
-     * The entity has just received a Renderable,
-     * but RenderWorld does not have its object yet.
-     */
     RenderDirty.dirty[entity] = 1;
   }
 
@@ -205,10 +214,6 @@ export class EcsWorldFacade {
     Animation.loop[entity] =
       data.loop === false ? 0 : 1;
 
-    /*
-     * Adding animation changes the visual state
-     * of an already-renderable entity.
-     */
     if (this.hasRenderable(entity)) {
       this.markRenderDirty(entity);
     }

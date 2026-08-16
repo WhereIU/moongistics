@@ -25,6 +25,15 @@ export class MovementSystem implements EcsSystem {
     for (
       const entity of queries.moving(rawWorld)
     ) {
+      Transform.previousX[entity] =
+        Transform.x[entity];
+
+      Transform.previousY[entity] =
+        Transform.y[entity];
+
+      Transform.previousRotation[entity] =
+        Transform.rotation[entity];
+
       Transform.x[entity] +=
         Velocity.x[entity] *
         deltaSeconds;

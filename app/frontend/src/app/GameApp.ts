@@ -197,6 +197,7 @@ export class GameApp {
 
     this.renderSystem.sync(
       this.gameWorld.ecs,
+      0,
     );
   }
 
@@ -207,12 +208,14 @@ export class GameApp {
       return;
     }
 
+  const alpha =
     this.gameLoop.update(
       ticker,
     );
 
-    this.renderSystem.sync(
-      this.gameWorld.ecs,
-    );
+  this.renderSystem.sync(
+    this.gameWorld.ecs,
+    alpha,
+  );
   }
 }
