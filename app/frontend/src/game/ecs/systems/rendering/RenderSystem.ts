@@ -1,3 +1,5 @@
+import { queries } from '../../queries';
+
 import type {
   EcsWorldFacade,
 } from '../../world/EcsWorld';
@@ -16,8 +18,7 @@ export class RenderSystem {
   public sync(
     world: EcsWorldFacade,
   ): void {
-    const entities =
-      world.queryRenderable();
+    const entities = queries.renderable(world.raw);
 
     for (
       const entity of entities

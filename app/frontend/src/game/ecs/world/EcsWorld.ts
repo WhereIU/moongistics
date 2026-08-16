@@ -3,7 +3,6 @@ import {
   addEntity,
   createWorld,
   hasComponent,
-  query,
   removeComponent,
   removeEntity,
 } from 'bitecs';
@@ -306,16 +305,5 @@ export class EcsWorldFacade {
       layer:
         Renderable.layer[entity],
     };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Queries
-  // ---------------------------------------------------------------------------
-
-  public queryRenderable() {
-    return query(
-      this.raw,
-      [Renderable],
-    );
   }
 }
