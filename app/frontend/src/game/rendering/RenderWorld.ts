@@ -26,12 +26,31 @@ export interface RenderEntityState {
   };
 }
 
+interface AppliedRenderState {
+  x: number;
+  y: number;
+  rotation: number;
+
+  visible: boolean;
+  layer: number;
+}
+
 export class RenderWorld {
   private readonly container: Container;
   private readonly factory: RenderObjectFactory;
 
   private readonly objects =
     new Map<number, ContainerChild>();
+
+  /**
+   * Последнее состояние, которое реально было
+   * применено к Pixi-объекту.
+   *
+   * Это отделено от ECS state:
+   * здесь хранится именно состояние render-object.
+   */
+  private readonly states =
+    new Map<number, AppliedRenderState>();
 
   public constructor(
     container: Container,
@@ -50,6 +69,7 @@ export class RenderWorld {
 
     if (existingObject) {
       this.updateObject(
+        entity,
         existingObject,
         state,
       );
@@ -72,8 +92,64 @@ export class RenderWorld {
     );
 
     this.updateObject(
+      entity,
       object,
       state,
+    );
+  }
+
+  private updateObject(
+    entity: number,
+    object: ContainerChild,
+    state: RenderEntityState,
+  ): void {
+    const previous =
+      this.states.get(entity);
+
+    if (
+      !previous ||
+      previous.x !== state.x ||
+      previous.y !== state.y
+    ) {
+      object.position.set(
+        state.x,
+        state.y,
+      );
+    }
+
+    if (
+      !previous ||
+      previous.rotation !== state.rotation
+    ) {
+      object.rotation =
+        state.rotation;
+    }
+
+    if (
+      !previous ||
+      previous.visible !== state.visible
+    ) {
+      object.visible =
+        state.visible;
+    }
+
+    if (
+      !previous ||
+      previous.layer !== state.layer
+    ) {
+      object.zIndex =
+        state.layer;
+    }
+
+    this.states.set(
+      entity,
+      {
+        x: state.x,
+        y: state.y,
+        rotation: state.rotation,
+        visible: state.visible,
+        layer: state.layer,
+      },
     );
   }
 
@@ -88,27 +164,26 @@ export class RenderWorld {
       return;
     }
 
-    object.visible =
+    const visible =
       !culled;
-  }
 
-  private updateObject(
-    object: ContainerChild,
-    state: RenderEntityState,
-  ): void {
-    object.position.set(
-      state.x,
-      state.y,
-    );
+    const previous =
+      this.states.get(entity);
 
-    object.rotation =
-      state.rotation;
+    if (
+      previous &&
+      previous.visible === visible
+    ) {
+      return;
+    }
 
     object.visible =
-      state.visible;
+      visible;
 
-    object.zIndex =
-      state.layer;
+    if (previous) {
+      previous.visible =
+        visible;
+    }
   }
 
   public removeEntity(
@@ -125,6 +200,7 @@ export class RenderWorld {
     object.destroy();
 
     this.objects.delete(entity);
+    this.states.delete(entity);
   }
 
   public clear(): void {
@@ -137,6 +213,7 @@ export class RenderWorld {
     }
 
     this.objects.clear();
+    this.states.clear();
   }
 
   public removeMissingEntities(
@@ -152,5 +229,9 @@ export class RenderWorld {
         this.removeEntity(entity);
       }
     }
+  }
+
+  public getObjectCount(): number {
+    return this.objects.size;
   }
 }
