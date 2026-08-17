@@ -16,7 +16,7 @@ import type {
   AssetSource,
   BasePrototype,
   FrameSetDefinition,
-} from '@/prototypes/base/types';
+} from '@/prototypes/types';
 
 export const assetRegistry =
   new AssetRegistry();

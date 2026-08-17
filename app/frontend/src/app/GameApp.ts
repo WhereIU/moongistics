@@ -10,7 +10,7 @@ import {
 
 import {
   loadGameAssets,
-} from './assetsLoader';
+} from '../shared/assets/AssetLoader';
 
 import {
   MainMenu,

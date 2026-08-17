@@ -8,7 +8,7 @@ import {
 import type {
   FrameRect,
   FrameSetDefinition,
-} from '@/prototypes/base/types';
+} from '@/prototypes/types';
 
 export interface LoadedFrameSet {
   readonly id: string;

@@ -1,10 +1,10 @@
 import {
   getEntityTextureUrl,
-} from '@/shared/utils/assets';
+} from '@/shared/assets/assetUrl';
 
 import type {
   TilePrototype,
-} from '../../base/types';
+} from '../../types';
 
 export const prototype: TilePrototype = {
   type: 'tile',

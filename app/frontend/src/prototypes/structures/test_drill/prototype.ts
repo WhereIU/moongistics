@@ -1,10 +1,10 @@
 import {
   getEntityTextureUrl,
-} from '@/shared/utils/assets';
+} from '@/shared/assets/assetUrl';
 
 import type {
   BuildingPrototype,
-} from '../../base/types';
+} from '../../types';
 
 const textureUrl =
   getEntityTextureUrl(

@@ -1,6 +1,6 @@
 import type {
   BasePrototype,
-} from '../base/types';
+} from '../types';
 
 class PrototypeRegistryManager {
   private readonly raw =

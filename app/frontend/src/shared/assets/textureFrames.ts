@@ -6,7 +6,7 @@ import {
 
 import type {
   FrameRect,
-} from '@/prototypes/base/types';
+} from '@/prototypes/types';
 
 export function getFrameCacheKey(
   textureKey: string,
