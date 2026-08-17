@@ -1,10 +1,12 @@
-import { query } from 'bitecs';
+import {
+  query,
+} from 'bitecs';
 
 import {
-  Animation,
-  Renderable,
   Transform,
   Velocity,
+  Renderable,
+  VisualAnimation,
 } from '../components';
 
 import type {
@@ -12,34 +14,50 @@ import type {
 } from '../world/EcsWorld';
 
 export const queries = {
-  moving(world: EcsWorld) {
+  moving(
+    world: EcsWorld,
+  ) {
     return query(
       world,
-      [Transform, Velocity],
+      [
+        Transform,
+        Velocity,
+      ],
     );
   },
 
-  animated(world: EcsWorld) {
+  animated(
+    world: EcsWorld,
+  ) {
     return query(
       world,
-      [Animation],
+      [
+        VisualAnimation,
+      ],
     );
   },
 
-  renderable(world: EcsWorld) {
-    return query(
-      world,
-      [Transform, Renderable],
-    );
-  },
-
-  animatedRenderable(world: EcsWorld) {
+  renderable(
+    world: EcsWorld,
+  ) {
     return query(
       world,
       [
         Transform,
         Renderable,
-        Animation,
+      ],
+    );
+  },
+
+  animatedRenderable(
+    world: EcsWorld,
+  ) {
+    return query(
+      world,
+      [
+        Transform,
+        Renderable,
+        VisualAnimation,
       ],
     );
   },

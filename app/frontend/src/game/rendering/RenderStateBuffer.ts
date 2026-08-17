@@ -1,4 +1,8 @@
 import type {
+  Texture,
+} from 'pixi.js';
+
+import type {
   RenderTypeId,
 } from '@/game/ecs/components/rendering';
 
@@ -11,20 +15,23 @@ export interface RenderState {
   layer: number;
 
   type: RenderTypeId;
-  assetKey: string;
-  visualVariant: number;
 
-  /**
-   * Current animation frame.
-   *
-   * For non-animated renderables this remains 0.
-   */
-  animationFrame: number;
+  frames:
+    readonly Texture[];
+
+  frame:
+    number;
+
+  tint:
+    number | null;
 }
 
 export class RenderStateBuffer {
   private readonly states =
-    new Map<number, RenderState>();
+    new Map<
+      number,
+      RenderState
+    >();
 
   private readonly presentEntities =
     new Set<number>();
@@ -60,11 +67,6 @@ export class RenderStateBuffer {
     );
   }
 
-  /**
-   * Updates only the interpolated transform.
-   *
-   * Returns true when the transform changed.
-   */
   public updateTransform(
     entity: number,
     x: number,
@@ -72,7 +74,9 @@ export class RenderStateBuffer {
     rotation: number,
   ): boolean {
     const state =
-      this.states.get(entity);
+      this.states.get(
+        entity,
+      );
 
     if (!state) {
       return false;
@@ -83,32 +87,31 @@ export class RenderStateBuffer {
       state.y !== y ||
       state.rotation !== rotation;
 
-    state.x = x;
-    state.y = y;
-    state.rotation = rotation;
+    state.x =
+      x;
+
+    state.y =
+      y;
+
+    state.rotation =
+      rotation;
 
     return changed;
   }
 
-  /**
-   * Updates render-relevant visual state.
-   *
-   * Returns true when something changed.
-   */
-  public updateRenderable(
+  public updateVisual(
     entity: number,
-
     visible: boolean,
     layer: number,
-
     type: RenderTypeId,
-    assetKey: string,
-    visualVariant: number,
-
-    animationFrame: number,
+    frames: readonly Texture[],
+    frame: number,
+    tint: number | null,
   ): boolean {
     const state =
-      this.states.get(entity);
+      this.states.get(
+        entity,
+      );
 
     if (!state) {
       return false;
@@ -118,9 +121,9 @@ export class RenderStateBuffer {
       state.visible !== visible ||
       state.layer !== layer ||
       state.type !== type ||
-      state.assetKey !== assetKey ||
-      state.visualVariant !== visualVariant ||
-      state.animationFrame !== animationFrame;
+      state.frames !== frames ||
+      state.frame !== frame ||
+      state.tint !== tint;
 
     state.visible =
       visible;
@@ -131,36 +134,29 @@ export class RenderStateBuffer {
     state.type =
       type;
 
-    state.assetKey =
-      assetKey;
+    state.frames =
+      frames;
 
-    state.visualVariant =
-      visualVariant;
+    state.frame =
+      frame;
 
-    state.animationFrame =
-      animationFrame;
+    state.tint =
+      tint;
 
     return changed;
   }
 
-  /**
-   * Creates the initial state for an entity.
-   */
   public create(
     entity: number,
-
     x: number,
     y: number,
     rotation: number,
-
     visible: boolean,
     layer: number,
-
     type: RenderTypeId,
-    assetKey: string,
-    visualVariant: number,
-
-    animationFrame: number,
+    frames: readonly Texture[],
+    frame: number,
+    tint: number | null,
   ): void {
     this.states.set(
       entity,
@@ -173,20 +169,16 @@ export class RenderStateBuffer {
         layer,
 
         type,
-        assetKey,
-        visualVariant,
 
-        animationFrame,
+        frames,
+
+        frame,
+
+        tint,
       },
     );
   }
 
-  /**
-   * Marks an entity as currently visible.
-   *
-   * Returns true if it has just entered the
-   * culling bounds.
-   */
   public markVisible(
     entity: number,
   ): boolean {

@@ -7,11 +7,17 @@ export const RenderType = {
 export type RenderTypeId =
   (typeof RenderType)[keyof typeof RenderType];
 
+/**
+ * Renderer-facing state.
+ *
+ * Prototype/asset information does not belong here.
+ * The visual source is resolved through PrototypeRef.
+ */
 export const Renderable = {
-  assetKey: [] as string[],
-  visualVariant: [] as number[],
   type: [] as RenderTypeId[],
+
   visible: [] as number[],
+
   layer: [] as number[],
 };
 
@@ -19,18 +25,9 @@ export const Renderable = {
  * Marks an entity whose visual state must be synchronized
  * with the rendering world.
  *
- * 1 = dirty, render state is outdated
- * 0 = clean, render state is synchronized
+ * 1 = dirty
+ * 0 = clean
  */
 export const RenderDirty = {
   dirty: [] as number[],
-};
-
-export const Animation = {
-  frame: [] as number[],
-  frameCount: [] as number[],
-  fps: [] as number[],
-  elapsedSeconds: [] as number[],
-  playing: [] as number[],
-  loop: [] as number[],
 };

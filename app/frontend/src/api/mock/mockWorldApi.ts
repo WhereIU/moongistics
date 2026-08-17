@@ -1,4 +1,5 @@
 import type { GameApi } from '@/api/client';
+
 import type {
   WorldData,
   WorldTileData,
@@ -17,20 +18,26 @@ export class MockWorldApi implements GameApi {
     for (
       let y = 0;
       y < height;
-      y++
+      y += 1
     ) {
       for (
         let x = 0;
         x < width;
-        x++
+        x += 1
       ) {
         tiles.push({
-          x: x * tileSize,
-          y: y * tileSize,
+          x:
+            x *
+            tileSize,
 
-          baseType: 'lunar_regolith',
+          y:
+            y *
+            tileSize,
 
-          visualVariant:
+          prototypeId:
+            'lunar_regolith',
+
+          variant:
             Math.floor(
               Math.random() * 16,
             ),
@@ -49,6 +56,7 @@ export class MockWorldApi implements GameApi {
       height,
 
       tileSize,
+
       tiles,
     };
   }

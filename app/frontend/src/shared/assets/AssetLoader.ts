@@ -30,6 +30,17 @@ interface RegisteredAsset {
   source: AssetSource;
 }
 
+export function getFrameSetId(
+  prototype: BasePrototype,
+  suffix: string,
+): string {
+  return [
+    prototype.type,
+    prototype.id,
+    suffix,
+  ].join('.');
+}
+
 function collectFrameSets(
   prototype: BasePrototype,
 ): RegisteredFrameSet[] {
@@ -45,7 +56,10 @@ function collectFrameSets(
   if (render.static) {
     result.push({
       id:
-        `${prototype.type}.${prototype.id}.static`,
+        getFrameSetId(
+          prototype,
+          'static',
+        ),
 
       definition:
         render.static,
@@ -64,7 +78,10 @@ function collectFrameSets(
     ) {
       result.push({
         id:
-          `${prototype.type}.${prototype.id}.animation.${animationId}`,
+          getFrameSetId(
+            prototype,
+            `animation.${animationId}`,
+          ),
 
         definition:
           animation.frames,
@@ -79,7 +96,10 @@ function collectAssets(
   prototypes: BasePrototype[],
 ): RegisteredAsset[] {
   const assets =
-    new Map<string, RegisteredAsset>();
+    new Map<
+      string,
+      RegisteredAsset
+    >();
 
   for (
     const prototype
@@ -133,18 +153,35 @@ async function loadAssets(
       asset.source.url;
 
     Assets.add({
-      alias: key,
-      src: asset.source.url,
+      alias:
+        key,
+
+      src:
+        asset.source.url,
     });
   }
 
   await Promise.all(
     assets.map(
-      (asset) =>
-        Assets.load(
+      async (asset) => {
+        const key =
           asset.source.key ??
-          asset.source.url,
-        ),
+          asset.source.url;
+
+        try {
+          await Assets.load(
+            key,
+          );
+        } catch (error) {
+          throw new Error(
+            `[AssetLoader] Failed to load asset "${key}" from "${asset.source.url}".`,
+            {
+              cause:
+                error,
+            },
+          );
+        }
+      },
     ),
   );
 
@@ -161,10 +198,14 @@ async function loadAssets(
         key,
       );
 
-    if (texture) {
-      texture.source.scaleMode =
-        'nearest';
+    if (!texture) {
+      throw new Error(
+        `[AssetLoader] Asset loaded but texture is unavailable: ${key}`,
+      );
     }
+
+    texture.source.scaleMode =
+      'nearest';
   }
 }
 

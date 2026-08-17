@@ -4,6 +4,14 @@ import type {
 } from '../world/EcsWorld';
 
 import {
+  PrototypeRegistry,
+} from '@/prototypes/registry/PrototypeRegistry';
+
+import {
+  isTilePrototype,
+} from '@/prototypes/types';
+
+import {
   RenderType,
 } from '../components/rendering';
 
@@ -11,8 +19,9 @@ export interface TileSpawnData {
   x: number;
   y: number;
 
-  baseType: string;
-  visualVariant?: number;
+  prototypeId: string;
+
+  variant?: number;
 
   playable: boolean;
 }
@@ -23,12 +32,27 @@ export class SpawnService {
   public constructor(
     world: EcsWorldFacade,
   ) {
-    this.world = world;
+    this.world =
+      world;
   }
 
   public spawnTile(
     data: TileSpawnData,
   ): EcsEntity {
+    const prototype =
+      PrototypeRegistry.get(
+        'tile',
+        data.prototypeId,
+      );
+
+    if (
+      !isTilePrototype(prototype)
+    ) {
+      throw new Error(
+        `[SpawnService] Prototype is not a tile: tile.${data.prototypeId}`,
+      );
+    }
+
     const entity =
       this.world.createEntity();
 
@@ -38,19 +62,58 @@ export class SpawnService {
       data.y,
     );
 
+    this.world.addPrototypeRef(
+      entity,
+      prototype.type,
+      prototype.id,
+    );
+
+    this.world.addVisualVariant(
+      entity,
+      data.variant ?? 0,
+    );
+
     this.world.addRenderable(
       entity,
       {
-        type: RenderType.Sprite,
+        type:
+          this.resolveRenderType(
+            prototype.render.type,
+          ),
 
-        assetKey:
-          data.baseType,
+        visible:
+          true,
 
-        visualVariant:
-          data.visualVariant,
+        layer:
+          0,
       },
     );
 
     return entity;
+  }
+
+  private resolveRenderType(
+    type:
+      | 'sprite'
+      | 'animated'
+      | 'container'
+      | undefined,
+  ) {
+    switch (type) {
+      case 'animated':
+        return RenderType.Animated;
+
+      case 'container':
+        return RenderType.Container;
+
+      case 'sprite':
+      case undefined:
+        return RenderType.Sprite;
+
+      default:
+        throw new Error(
+          `[SpawnService] Unknown render type: ${String(type)}`,
+        );
+    }
   }
 }

@@ -3,6 +3,7 @@ import {
 } from '../../queries';
 
 import {
+  PrototypeRef,
   Transform,
 } from '../../components';
 
@@ -22,26 +23,34 @@ import type {
   ViewportBounds,
 } from '@/features/camera-control/CameraControl';
 
+import {
+  prototypeVisualResolver,
+} from '@/shared/assets/PrototypeVisualResolver';
+
 export class RenderSystem {
-  private readonly renderWorld: RenderWorld;
+  private readonly renderWorld:
+    RenderWorld;
 
   private readonly renderStateBuffer:
     RenderStateBuffer;
 
-  private readonly cullingMargin: number;
+  private readonly cullingMargin:
+    number;
 
   public constructor(
     renderWorld: RenderWorld,
     tileSize: number,
     cullingTiles: number,
   ) {
-    this.renderWorld = renderWorld;
+    this.renderWorld =
+      renderWorld;
 
     this.renderStateBuffer =
       new RenderStateBuffer();
 
     this.cullingMargin =
-      tileSize * cullingTiles;
+      tileSize *
+      cullingTiles;
   }
 
   public sync(
@@ -57,7 +66,8 @@ export class RenderSystem {
     this.renderStateBuffer.beginFrame();
 
     for (
-      const entity of entities
+      const entity
+      of entities
     ) {
       this.renderStateBuffer.markPresent(
         entity,
@@ -110,24 +120,47 @@ export class RenderSystem {
       let changed =
         false;
 
-      /*
-       * New entity:
-       *
-       * The buffer has no state yet, so ECS
-       * render data must be read regardless
-       * of RenderDirty.
-       */
+      const prototypeRef =
+        this.getPrototypeRef(
+          world,
+          entity,
+        );
+
+      if (!prototypeRef) {
+        continue;
+      }
+
+      const visual =
+        prototypeVisualResolver.resolve(
+          prototypeRef.type as
+            'tile' |
+            'structure',
+          prototypeRef.id,
+        );
+
+      const renderable =
+        world.getRenderable(
+          entity,
+        );
+
+      if (!renderable) {
+        continue;
+      }
+
+      const animation =
+        world.getAnimation(
+          entity,
+        );
+
+      const visualState =
+        this.resolveVisualState(
+          visual,
+          world,
+          entity,
+          animation,
+        );
+
       if (isNew) {
-        const renderable =
-          world.getRenderable(entity);
-
-        if (!renderable) {
-          continue;
-        }
-
-        const animation =
-          world.getAnimation(entity);
-
         this.renderStateBuffer.create(
           entity,
 
@@ -139,20 +172,17 @@ export class RenderSystem {
           renderable.layer,
 
           renderable.type,
-          renderable.assetKey,
-          renderable.visualVariant,
 
-          animation?.frame ?? 0,
+          visualState.frames,
+
+          visualState.frame,
+
+          visual.tint,
         );
 
-        changed = true;
+        changed =
+          true;
       } else {
-        /*
-         * Transform is render-frame data.
-         *
-         * It is updated every render frame so
-         * interpolation remains smooth.
-         */
         changed =
           this.renderStateBuffer.updateTransform(
             entity,
@@ -161,37 +191,25 @@ export class RenderSystem {
             interpolatedRotation,
           );
 
-        /*
-         * Renderable and Animation are event-like
-         * visual state.
-         *
-         * ECS is only read when the entity is dirty.
-         */
         if (
           world.isRenderDirty(entity)
         ) {
-          const renderable =
-            world.getRenderable(entity);
+          changed =
+            this.renderStateBuffer.updateVisual(
+              entity,
 
-          if (renderable) {
-            const animation =
-              world.getAnimation(entity);
+              renderable.visible,
+              renderable.layer,
 
-            changed =
-              this.renderStateBuffer.updateRenderable(
-                entity,
+              renderable.type,
 
-                renderable.visible,
-                renderable.layer,
+              visualState.frames,
 
-                renderable.type,
-                renderable.assetKey,
-                renderable.visualVariant,
+              visualState.frame,
 
-                animation?.frame ?? 0,
-              ) ||
-              changed;
-          }
+              visual.tint,
+            ) ||
+            changed;
 
           world.clearRenderDirty(
             entity,
@@ -199,18 +217,11 @@ export class RenderSystem {
         }
       }
 
-      /*
-       * RenderWorld may have destroyed the Pixi
-       * object while this entity was outside
-       * the culling bounds.
-       *
-       * Its buffered state is still valid, so
-       * returning to the viewport forces a sync.
-       */
       if (
         returnedToViewport
       ) {
-        changed = true;
+        changed =
+          true;
       }
 
       if (!changed) {
@@ -248,14 +259,14 @@ export class RenderSystem {
             type:
               state.type,
 
-            assetKey:
-              state.assetKey,
+            frames:
+              state.frames,
 
-            visualVariant:
-              state.visualVariant,
+            frame:
+              state.frame,
 
-            animationFrame:
-              state.animationFrame,
+            tint:
+              state.tint,
           },
         },
       );
@@ -280,6 +291,99 @@ export class RenderSystem {
         entity,
       );
     }
+  }
+
+  private getPrototypeRef(
+    world: EcsWorldFacade,
+    entity: number,
+  ): {
+    type: string;
+    id: string;
+  } | null {
+    if (
+      !world.hasPrototypeRef(entity)
+    ) {
+      return null;
+    }
+
+    return {
+      type:
+        PrototypeRef.type[entity],
+
+      id:
+        PrototypeRef.id[entity],
+    };
+  }
+
+  private resolveVisualState(
+    visual: ReturnType<
+      typeof prototypeVisualResolver.resolve
+    >,
+    world: EcsWorldFacade,
+    entity: number,
+    animation: ReturnType<
+      EcsWorldFacade['getAnimation']
+    >,
+  ): {
+    frames: readonly import('pixi.js').Texture[];
+    frame: number;
+  } {
+    if (
+      animation
+    ) {
+      const resolvedAnimation =
+        visual.animations.get(
+          animation.id,
+        );
+
+      if (!resolvedAnimation) {
+        throw new Error(
+          `[RenderSystem] Animation "${animation.id}" is not defined by the prototype.`,
+        );
+      }
+
+      return {
+        frames:
+          resolvedAnimation.frames,
+
+        frame:
+          animation.frame,
+      };
+    }
+
+    if (
+      !visual.staticFrames
+    ) {
+      throw new Error(
+        `[RenderSystem] Entity ${entity} has no animation and its prototype has no static visual.`,
+      );
+    }
+
+    const variant =
+      world.getVisualVariant(
+        entity,
+      );
+
+    if (
+      variant < 0 ||
+      variant >=
+        visual.staticFrames.length
+    ) {
+      throw new Error(
+        [
+          `[RenderSystem] Visual variant ${variant} is outside`,
+          `the available range 0..${visual.staticFrames.length - 1}.`,
+        ].join(' '),
+      );
+    }
+
+    return {
+      frames:
+        visual.staticFrames,
+
+      frame:
+        variant,
+    };
   }
 
   private isInsideCullingBounds(

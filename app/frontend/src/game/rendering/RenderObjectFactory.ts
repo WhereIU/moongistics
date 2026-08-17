@@ -1,10 +1,8 @@
 import {
   AnimatedSprite,
-  Assets,
-  Cache,
   Container,
   Sprite,
-  Texture,
+  type Texture,
 } from 'pixi.js';
 
 import {
@@ -14,28 +12,33 @@ import {
 
 export interface RenderObjectData {
   type: RenderTypeId;
-  assetKey: string;
 
-  // Normalized ECS value.
-  visualVariant: number;
+  frames:
+    readonly Texture[];
 
-  // Current animation frame.
-  //
-  // The actual frame texture collection will be
-  // connected when animated asset definitions are added.
-  animationFrame: number;
+  frame:
+    number;
+
+  tint:
+    number | null;
 }
 
 export class RenderObjectFactory {
   public create(
     data: RenderObjectData,
   ): Container | Sprite | AnimatedSprite {
-    switch (data.type) {
+    switch (
+      data.type
+    ) {
       case RenderType.Sprite:
-        return this.createSprite(data);
+        return this.createSprite(
+          data,
+        );
 
       case RenderType.Animated:
-        return this.createAnimatedSprite(data);
+        return this.createAnimatedSprite(
+          data,
+        );
 
       case RenderType.Container:
         return new Container();
@@ -51,15 +54,26 @@ export class RenderObjectFactory {
     data: RenderObjectData,
   ): Sprite {
     const texture =
-      this.resolveTexture(
-        data.assetKey,
-        data.visualVariant,
+      this.getFrame(
+        data.frames,
+        data.frame,
       );
 
     const sprite =
-      new Sprite(texture);
+      new Sprite(
+        texture,
+      );
 
-    sprite.anchor.set(0.5);
+    sprite.anchor.set(
+      0.5,
+    );
+
+    if (
+      data.tint !== null
+    ) {
+      sprite.tint =
+        data.tint;
+    }
 
     return sprite;
   }
@@ -67,59 +81,70 @@ export class RenderObjectFactory {
   private createAnimatedSprite(
     data: RenderObjectData,
   ): AnimatedSprite {
-    /*
-     * Animation frame collection is intentionally
-     * not implemented yet.
-     *
-     * For now the animated object is created from
-     * the same base/variant texture as before.
-     *
-     * The next asset/prototype step will provide
-     * the actual frame texture collection.
-     */
-    const texture =
-      this.resolveTexture(
-        data.assetKey,
-        data.visualVariant,
+    if (
+      data.frames.length === 0
+    ) {
+      throw new Error(
+        `[RenderObjectFactory] Cannot create AnimatedSprite without frames.`,
       );
+    }
 
     const sprite =
       new AnimatedSprite([
-        texture,
+        ...data.frames,
       ]);
 
-    sprite.anchor.set(0.5);
+    sprite.anchor.set(
+      0.5,
+    );
+
+    const frame =
+      Math.min(
+        Math.max(
+          data.frame,
+          0,
+        ),
+        data.frames.length - 1,
+      );
+
+    sprite.gotoAndStop(
+      frame,
+    );
+
+    if (
+      data.tint !== null
+    ) {
+      sprite.tint =
+        data.tint;
+    }
 
     return sprite;
   }
 
-  private resolveTexture(
-    assetKey: string,
-    visualVariant: number,
+  private getFrame(
+    frames: readonly Texture[],
+    frame: number,
   ): Texture {
-    const variantKey =
-      `${assetKey}_${visualVariant}`;
-
-    const cachedTexture =
-      Cache.get<Texture>(
-        variantKey,
-      );
-
-    if (cachedTexture) {
-      return cachedTexture;
-    }
-
-    const baseTexture =
-      Assets.get<Texture>(
-        assetKey,
-      );
-
-    if (!baseTexture) {
+    if (
+      frames.length === 0
+    ) {
       throw new Error(
-        `[RenderObjectFactory] Texture not found: ${assetKey}`,
+        `[RenderObjectFactory] Cannot create Sprite without frames.`,
       );
     }
 
-    return baseTexture;
+    if (
+      frame < 0 ||
+      frame >= frames.length
+    ) {
+      throw new Error(
+        [
+          `[RenderObjectFactory] Frame index ${frame} is outside`,
+          `the available range 0..${frames.length - 1}.`,
+        ].join(' '),
+      );
+    }
+
+    return frames[frame];
   }
 }

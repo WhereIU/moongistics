@@ -17,7 +17,10 @@ export interface LoadedFrameSet {
 
 export class AssetRegistry {
   private readonly frameSets =
-    new Map<string, LoadedFrameSet>();
+    new Map<
+      string,
+      LoadedFrameSet
+    >();
 
   public registerFrameSet(
     id: string,
@@ -41,15 +44,27 @@ export class AssetRegistry {
 
     if (!baseTexture) {
       throw new Error(
-        `[AssetRegistry] Asset not loaded: ${sourceKey}`,
+        [
+          `[AssetRegistry] Cannot build frame set "${id}".`,
+          `Asset "${sourceKey}" has not been loaded.`,
+        ].join(' '),
       );
     }
 
     const frameRects =
       this.resolveFrameRects(
+        id,
         baseTexture,
         definition,
       );
+
+    if (
+      frameRects.length === 0
+    ) {
+      throw new Error(
+        `[AssetRegistry] Frame set "${id}" resolved to zero frames.`,
+      );
+    }
 
     const textures =
       frameRects.map(
@@ -57,13 +72,10 @@ export class AssetRegistry {
           const cacheKey =
             `frame:${id}:${index}`;
 
-          const cached =
-            Cache.get<Texture>(
+          if (Cache.has(cacheKey)) {
+            return Cache.get<Texture>(
               cacheKey,
             );
-
-          if (cached) {
-            return cached;
           }
 
           const texture =
@@ -91,7 +103,8 @@ export class AssetRegistry {
 
     const frameSet: LoadedFrameSet = {
       id,
-      frames: textures,
+      frames:
+        textures,
     };
 
     this.frameSets.set(
@@ -124,15 +137,21 @@ export class AssetRegistry {
   }
 
   private resolveFrameRects(
+    id: string,
     texture: Texture,
     definition: FrameSetDefinition,
   ): FrameRect[] {
-    if (definition.frames) {
+    if (
+      definition.frames
+    ) {
       return definition.frames;
     }
 
-    if (definition.grid) {
+    if (
+      definition.grid
+    ) {
       return this.generateGridFrames(
+        id,
         texture.width,
         texture.height,
         definition.grid,
@@ -143,13 +162,16 @@ export class AssetRegistry {
       {
         x: 0,
         y: 0,
-        w: texture.width,
-        h: texture.height,
+        w:
+          texture.width,
+        h:
+          texture.height,
       },
     ];
   }
 
   private generateGridFrames(
+    id: string,
     imageWidth: number,
     imageHeight: number,
     config: NonNullable<
@@ -168,7 +190,24 @@ export class AssetRegistry {
       frameWidth <= 0 ||
       frameHeight <= 0
     ) {
-      return [];
+      throw new Error(
+        [
+          `[AssetRegistry] Invalid grid in frame set "${id}".`,
+          `Frame size must be greater than zero.`,
+        ].join(' '),
+      );
+    }
+
+    if (
+      startX < 0 ||
+      startY < 0
+    ) {
+      throw new Error(
+        [
+          `[AssetRegistry] Invalid grid in frame set "${id}".`,
+          `startX/startY cannot be negative.`,
+        ].join(' '),
+      );
     }
 
     const maxCols =
@@ -193,20 +232,44 @@ export class AssetRegistry {
       maxCols <= 0 ||
       maxRows <= 0
     ) {
-      return [];
+      throw new Error(
+        [
+          `[AssetRegistry] Grid in frame set "${id}" does not fit inside the source image.`,
+          `Image: ${imageWidth}x${imageHeight}.`,
+          `Frame: ${frameWidth}x${frameHeight}.`,
+          `Start: ${startX},${startY}.`,
+        ].join(' '),
+      );
     }
 
     const availableFrames =
       maxCols *
       maxRows;
 
+    if (
+      count !== undefined &&
+      count <= 0
+    ) {
+      throw new Error(
+        `[AssetRegistry] Frame count must be greater than zero in frame set "${id}".`,
+      );
+    }
+
+    if (
+      count !== undefined &&
+      count > availableFrames
+    ) {
+      throw new Error(
+        [
+          `[AssetRegistry] Frame set "${id}" requests ${count} frames,`,
+          `but only ${availableFrames} fit inside the source image.`,
+        ].join(' '),
+      );
+    }
+
     const totalFrames =
-      count === undefined
-        ? availableFrames
-        : Math.min(
-            count,
-            availableFrames,
-          );
+      count ??
+      availableFrames;
 
     const frames: FrameRect[] = [];
 
@@ -236,8 +299,11 @@ export class AssetRegistry {
           row *
           frameHeight,
 
-        w: frameWidth,
-        h: frameHeight,
+        w:
+          frameWidth,
+
+        h:
+          frameHeight,
       });
     }
 

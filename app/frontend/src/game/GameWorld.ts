@@ -1,14 +1,19 @@
-import type { WorldData } from '@/api/types';
+import type {
+  WorldData,
+} from '@/api/types';
 
 import {
   EcsWorldFacade,
   createEcsWorld,
 } from './ecs/world/EcsWorld';
 
-import { SpawnService } from './ecs/spawn/SpawnService';
+import {
+  SpawnService,
+} from './ecs/spawn/SpawnService';
 
 export class GameWorld {
   public readonly ecs: EcsWorldFacade;
+
   public readonly data: WorldData;
 
   private initialized = false;
@@ -16,7 +21,8 @@ export class GameWorld {
   public constructor(
     data: WorldData,
   ) {
-    this.data = data;
+    this.data =
+      data;
 
     this.ecs =
       new EcsWorldFacade(
@@ -25,7 +31,9 @@ export class GameWorld {
   }
 
   public initialize(): void {
-    if (this.initialized) {
+    if (
+      this.initialized
+    ) {
       return;
     }
 
@@ -39,16 +47,24 @@ export class GameWorld {
       of this.data.tiles
     ) {
       spawnService.spawnTile({
-        x: tile.x,
-        y: tile.y,
+        x:
+          tile.x,
 
-        baseType: tile.baseType,
-        visualVariant: tile.visualVariant,
+        y:
+          tile.y,
 
-        playable: tile.playable,
+        prototypeId:
+          tile.prototypeId,
+
+        variant:
+          tile.variant,
+
+        playable:
+          tile.playable,
       });
     }
 
-    this.initialized = true;
+    this.initialized =
+      true;
   }
 }

@@ -2,6 +2,7 @@ import {
   AnimatedSprite,
   Container,
   type ContainerChild,
+  type Texture,
 } from 'pixi.js';
 
 import type {
@@ -22,9 +23,15 @@ export interface RenderEntityState {
 
   renderable: {
     type: RenderTypeId;
-    assetKey: string;
-    visualVariant: number;
-    animationFrame: number;
+
+    frames:
+      readonly Texture[];
+
+    frame:
+      number;
+
+    tint:
+      number | null;
   };
 }
 
@@ -36,25 +43,36 @@ interface AppliedRenderState {
   visible: boolean;
   layer: number;
 
-  animationFrame: number;
+  frame: number;
 }
 
 export class RenderWorld {
   private readonly container: Container;
-  private readonly factory: RenderObjectFactory;
+
+  private readonly factory:
+    RenderObjectFactory;
 
   private readonly objects =
-    new Map<number, ContainerChild>();
+    new Map<
+      number,
+      ContainerChild
+    >();
 
   private readonly states =
-    new Map<number, AppliedRenderState>();
+    new Map<
+      number,
+      AppliedRenderState
+    >();
 
   public constructor(
     container: Container,
     factory: RenderObjectFactory,
   ) {
-    this.container = container;
-    this.factory = factory;
+    this.container =
+      container;
+
+    this.factory =
+      factory;
   }
 
   public syncEntity(
@@ -62,9 +80,13 @@ export class RenderWorld {
     state: RenderEntityState,
   ): void {
     const existingObject =
-      this.objects.get(entity);
+      this.objects.get(
+        entity,
+      );
 
-    if (existingObject) {
+    if (
+      existingObject
+    ) {
       this.updateObject(
         entity,
         existingObject,
@@ -101,7 +123,9 @@ export class RenderWorld {
     state: RenderEntityState,
   ): void {
     const previous =
-      this.states.get(entity);
+      this.states.get(
+        entity,
+      );
 
     if (
       !previous ||
@@ -116,7 +140,8 @@ export class RenderWorld {
 
     if (
       !previous ||
-      previous.rotation !== state.rotation
+      previous.rotation !==
+        state.rotation
     ) {
       object.rotation =
         state.rotation;
@@ -124,7 +149,8 @@ export class RenderWorld {
 
     if (
       !previous ||
-      previous.visible !== state.visible
+      previous.visible !==
+        state.visible
     ) {
       object.visible =
         state.visible;
@@ -132,7 +158,8 @@ export class RenderWorld {
 
     if (
       !previous ||
-      previous.layer !== state.layer
+      previous.layer !==
+        state.layer
     ) {
       object.zIndex =
         state.layer;
@@ -142,26 +169,17 @@ export class RenderWorld {
       object instanceof AnimatedSprite &&
       (
         !previous ||
-        previous.animationFrame !==
-          state.renderable.animationFrame
+        previous.frame !==
+          state.renderable.frame
       )
     ) {
-      /*
-       * The actual animation texture list will be
-       * provided by RenderObjectFactory once the
-       * animated asset format is introduced.
-       *
-       * Until then, currentFrame is only applied
-       * when the AnimatedSprite actually has that
-       * frame available.
-       */
       if (
-        state.renderable.animationFrame >= 0 &&
-        state.renderable.animationFrame <
+        state.renderable.frame >= 0 &&
+        state.renderable.frame <
           object.totalFrames
       ) {
         object.gotoAndStop(
-          state.renderable.animationFrame,
+          state.renderable.frame,
         );
       }
     }
@@ -184,8 +202,8 @@ export class RenderWorld {
         layer:
           state.layer,
 
-        animationFrame:
-          state.renderable.animationFrame,
+        frame:
+          state.renderable.frame,
       },
     );
   }
@@ -195,7 +213,9 @@ export class RenderWorld {
     culled: boolean,
   ): void {
     const object =
-      this.objects.get(entity);
+      this.objects.get(
+        entity,
+      );
 
     if (!object) {
       return;
@@ -205,11 +225,14 @@ export class RenderWorld {
       !culled;
 
     const previous =
-      this.states.get(entity);
+      this.states.get(
+        entity,
+      );
 
     if (
       previous &&
-      previous.visible === visible
+      previous.visible ===
+        visible
     ) {
       return;
     }
@@ -217,7 +240,9 @@ export class RenderWorld {
     object.visible =
       visible;
 
-    if (previous) {
+    if (
+      previous
+    ) {
       previous.visible =
         visible;
     }
@@ -227,7 +252,9 @@ export class RenderWorld {
     entity: number,
   ): void {
     const object =
-      this.objects.get(entity);
+      this.objects.get(
+        entity,
+      );
 
     if (!object) {
       return;

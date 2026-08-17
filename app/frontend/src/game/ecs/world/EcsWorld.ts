@@ -16,7 +16,8 @@ import {
   PrototypeRef,
   Renderable,
   RenderDirty,
-  Animation,
+  VisualVariant,
+  VisualAnimation,
   type RenderTypeId,
 } from '../components';
 
@@ -37,7 +38,8 @@ export type RawEcsWorld =
   ReturnType<typeof createWorld>;
 
 export type EcsWorld =
-  RawEcsWorld & EcsRuntime;
+  RawEcsWorld &
+  EcsRuntime;
 
 export function createEcsWorld(): EcsWorld {
   return createWorld({
@@ -46,17 +48,14 @@ export function createEcsWorld(): EcsWorld {
       simulationTimeSeconds: 0,
     },
 
-    commands: new CommandBus(),
-    events: new EventBus(),
+    commands:
+      new CommandBus(),
+
+    events:
+      new EventBus(),
   }) as EcsWorld;
 }
 
-/**
- * Application-level facade over bitECS.
- *
- * Game code works with this class instead of directly manipulating
- * the bitECS world.
- */
 export class EcsWorldFacade {
   public readonly raw: EcsWorld;
 
@@ -71,7 +70,9 @@ export class EcsWorldFacade {
   // ---------------------------------------------------------------------------
 
   public createEntity(): EcsEntity {
-    return addEntity(this.raw);
+    return addEntity(
+      this.raw,
+    );
   }
 
   public destroyEntity(
@@ -84,7 +85,7 @@ export class EcsWorldFacade {
   }
 
   // ---------------------------------------------------------------------------
-  // Components
+  // Transform
   // ---------------------------------------------------------------------------
 
   public addPosition(
@@ -99,14 +100,63 @@ export class EcsWorldFacade {
       Transform,
     );
 
-    Transform.x[entity] = x;
-    Transform.y[entity] = y;
-    Transform.rotation[entity] = rotation;
+    Transform.x[entity] =
+      x;
 
-    Transform.previousX[entity] = x;
-    Transform.previousY[entity] = y;
-    Transform.previousRotation[entity] = rotation;
+    Transform.y[entity] =
+      y;
+
+    Transform.rotation[entity] =
+      rotation;
+
+    Transform.previousX[entity] =
+      x;
+
+    Transform.previousY[entity] =
+      y;
+
+    Transform.previousRotation[entity] =
+      rotation;
   }
+
+  public hasPosition(
+    entity: EcsEntity,
+  ): boolean {
+    return hasComponent(
+      this.raw,
+      entity,
+      Transform,
+    );
+  }
+
+  public getPosition(
+    entity: EcsEntity,
+  ): {
+    x: number;
+    y: number;
+    rotation: number;
+  } | null {
+    if (
+      !this.hasPosition(entity)
+    ) {
+      return null;
+    }
+
+    return {
+      x:
+        Transform.x[entity],
+
+      y:
+        Transform.y[entity],
+
+      rotation:
+        Transform.rotation[entity],
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Velocity
+  // ---------------------------------------------------------------------------
 
   public addVelocity(
     entity: EcsEntity,
@@ -119,9 +169,26 @@ export class EcsWorldFacade {
       Velocity,
     );
 
-    Velocity.x[entity] = x;
-    Velocity.y[entity] = y;
+    Velocity.x[entity] =
+      x;
+
+    Velocity.y[entity] =
+      y;
   }
+
+  public hasVelocity(
+    entity: EcsEntity,
+  ): boolean {
+    return hasComponent(
+      this.raw,
+      entity,
+      Velocity,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Prototype
+  // ---------------------------------------------------------------------------
 
   public addPrototypeRef(
     entity: EcsEntity,
@@ -134,16 +201,92 @@ export class EcsWorldFacade {
       PrototypeRef,
     );
 
-    PrototypeRef.type[entity] = type;
-    PrototypeRef.id[entity] = id;
+    PrototypeRef.type[entity] =
+      type;
+
+    PrototypeRef.id[entity] =
+      id;
   }
+
+  public hasPrototypeRef(
+    entity: EcsEntity,
+  ): boolean {
+    return hasComponent(
+      this.raw,
+      entity,
+      PrototypeRef,
+    );
+  }
+
+  public getPrototypeRef(
+    entity: EcsEntity,
+  ): {
+    type: string;
+    id: string;
+  } | null {
+    if (
+      !this.hasPrototypeRef(entity)
+    ) {
+      return null;
+    }
+
+    return {
+      type:
+        PrototypeRef.type[entity],
+
+      id:
+        PrototypeRef.id[entity],
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Visual variant
+  // ---------------------------------------------------------------------------
+
+  public addVisualVariant(
+    entity: EcsEntity,
+    index = 0,
+  ): void {
+    addComponent(
+      this.raw,
+      entity,
+      VisualVariant,
+    );
+
+    VisualVariant.index[entity] =
+      index;
+  }
+
+  public hasVisualVariant(
+    entity: EcsEntity,
+  ): boolean {
+    return hasComponent(
+      this.raw,
+      entity,
+      VisualVariant,
+    );
+  }
+
+  public getVisualVariant(
+    entity: EcsEntity,
+  ): number {
+    if (
+      !this.hasVisualVariant(entity)
+    ) {
+      return 0;
+    }
+
+    return VisualVariant.index[entity];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Renderable
+  // ---------------------------------------------------------------------------
 
   public addRenderable(
     entity: EcsEntity,
     data: {
       type: RenderTypeId;
-      assetKey: string;
-      visualVariant?: number;
       visible?: boolean;
       layer?: number;
     },
@@ -163,131 +306,16 @@ export class EcsWorldFacade {
     Renderable.type[entity] =
       data.type;
 
-    Renderable.assetKey[entity] =
-      data.assetKey;
-
-    Renderable.visualVariant[entity] =
-      data.visualVariant ?? 0;
-
     Renderable.visible[entity] =
-      data.visible === false ? 0 : 1;
+      data.visible === false
+        ? 0
+        : 1;
 
     Renderable.layer[entity] =
       data.layer ?? 0;
 
-    RenderDirty.dirty[entity] = 1;
-  }
-
-  public addAnimation(
-    entity: EcsEntity,
-    data: {
-      frameCount: number;
-      fps: number;
-      frame?: number;
-      playing?: boolean;
-      loop?: boolean;
-    },
-  ): void {
-    addComponent(
-      this.raw,
-      entity,
-      Animation,
-    );
-
-    Animation.frame[entity] =
-      data.frame ?? 0;
-
-    Animation.frameCount[entity] =
-      data.frameCount;
-
-    Animation.fps[entity] =
-      data.fps;
-
-    Animation.elapsedSeconds[entity] =
-      0;
-
-    Animation.playing[entity] =
-      data.playing === false ? 0 : 1;
-
-    Animation.loop[entity] =
-      data.loop === false ? 0 : 1;
-
-    if (
-      this.hasRenderable(entity)
-    ) {
-      this.markRenderDirty(entity);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Render dirty
-  // ---------------------------------------------------------------------------
-
-  public hasRenderDirty(
-    entity: EcsEntity,
-  ): boolean {
-    return hasComponent(
-      this.raw,
-      entity,
-      RenderDirty,
-    );
-  }
-
-  public markRenderDirty(
-    entity: EcsEntity,
-  ): void {
-    if (
-      !this.hasRenderDirty(entity)
-    ) {
-      return;
-    }
-
-    RenderDirty.dirty[entity] = 1;
-  }
-
-  public clearRenderDirty(
-    entity: EcsEntity,
-  ): void {
-    if (
-      !this.hasRenderDirty(entity)
-    ) {
-      return;
-    }
-
-    RenderDirty.dirty[entity] = 0;
-  }
-
-  public isRenderDirty(
-    entity: EcsEntity,
-  ): boolean {
-    return (
-      this.hasRenderDirty(entity) &&
-      RenderDirty.dirty[entity] === 1
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Component checks
-  // ---------------------------------------------------------------------------
-
-  public hasPosition(
-    entity: EcsEntity,
-  ): boolean {
-    return hasComponent(
-      this.raw,
-      entity,
-      Transform,
-    );
-  }
-
-  public hasVelocity(
-    entity: EcsEntity,
-  ): boolean {
-    return hasComponent(
-      this.raw,
-      entity,
-      Velocity,
-    );
+    RenderDirty.dirty[entity] =
+      1;
   }
 
   public hasRenderable(
@@ -300,19 +328,30 @@ export class EcsWorldFacade {
     );
   }
 
-  public hasAnimation(
+  public getRenderable(
     entity: EcsEntity,
-  ): boolean {
-    return hasComponent(
-      this.raw,
-      entity,
-      Animation,
-    );
-  }
+  ): {
+    type: RenderTypeId;
+    visible: boolean;
+    layer: number;
+  } | null {
+    if (
+      !this.hasRenderable(entity)
+    ) {
+      return null;
+    }
 
-  // ---------------------------------------------------------------------------
-  // Component removal
-  // ---------------------------------------------------------------------------
+    return {
+      type:
+        Renderable.type[entity],
+
+      visible:
+        Renderable.visible[entity] !== 0,
+
+      layer:
+        Renderable.layer[entity],
+    };
+  }
 
   public removeRenderable(
     entity: EcsEntity,
@@ -341,61 +380,61 @@ export class EcsWorldFacade {
   }
 
   // ---------------------------------------------------------------------------
-  // Component data access
+  // Animation
   // ---------------------------------------------------------------------------
 
-  public getPosition(
+  public addAnimation(
     entity: EcsEntity,
-  ): {
-    x: number;
-    y: number;
-    rotation: number;
-  } | null {
-    if (
-      !this.hasPosition(entity)
-    ) {
-      return null;
-    }
+    data: {
+      id: string;
+      frame?: number;
+      playing?: boolean;
+    },
+  ): void {
+    addComponent(
+      this.raw,
+      entity,
+      VisualAnimation,
+    );
 
-    return {
-      x: Transform.x[entity],
-      y: Transform.y[entity],
-      rotation: Transform.rotation[entity],
-    };
+    VisualAnimation.id[entity] =
+      data.id;
+
+    VisualAnimation.frame[entity] =
+      data.frame ?? 0;
+
+    VisualAnimation.elapsedSeconds[entity] =
+      0;
+
+    VisualAnimation.playing[entity] =
+      data.playing === false
+        ? 0
+        : 1;
+
+    if (
+      this.hasRenderable(entity)
+    ) {
+      this.markRenderDirty(entity);
+    }
   }
 
-  public getRenderable(
+  public hasAnimation(
     entity: EcsEntity,
-  ): {
-    type: RenderTypeId;
-    assetKey: string;
-    visualVariant: number;
-    visible: boolean;
-    layer: number;
-  } | null {
-    if (
-      !this.hasRenderable(entity)
-    ) {
-      return null;
-    }
-
-    return {
-      type: Renderable.type[entity],
-      assetKey: Renderable.assetKey[entity],
-      visualVariant:
-        Renderable.visualVariant[entity],
-      visible:
-        Renderable.visible[entity] !== 0,
-      layer:
-        Renderable.layer[entity],
-    };
+  ): boolean {
+    return hasComponent(
+      this.raw,
+      entity,
+      VisualAnimation,
+    );
   }
 
   public getAnimation(
     entity: EcsEntity,
   ): {
+    id: string;
     frame: number;
-    frameCount: number;
+    elapsedSeconds: number;
+    playing: boolean;
   } | null {
     if (
       !this.hasAnimation(entity)
@@ -404,11 +443,66 @@ export class EcsWorldFacade {
     }
 
     return {
-      frame:
-        Animation.frame[entity],
+      id:
+        VisualAnimation.id[entity],
 
-      frameCount:
-        Animation.frameCount[entity],
+      frame:
+        VisualAnimation.frame[entity],
+
+      elapsedSeconds:
+        VisualAnimation.elapsedSeconds[entity],
+
+      playing:
+        VisualAnimation.playing[entity] !== 0,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render dirty
+  // ---------------------------------------------------------------------------
+
+  public hasRenderDirty(
+    entity: EcsEntity,
+  ): boolean {
+    return hasComponent(
+      this.raw,
+      entity,
+      RenderDirty,
+    );
+  }
+
+  public markRenderDirty(
+    entity: EcsEntity,
+  ): void {
+    if (
+      !this.hasRenderDirty(entity)
+    ) {
+      return;
+    }
+
+    RenderDirty.dirty[entity] =
+      1;
+  }
+
+  public clearRenderDirty(
+    entity: EcsEntity,
+  ): void {
+    if (
+      !this.hasRenderDirty(entity)
+    ) {
+      return;
+    }
+
+    RenderDirty.dirty[entity] =
+      0;
+  }
+
+  public isRenderDirty(
+    entity: EcsEntity,
+  ): boolean {
+    return (
+      this.hasRenderDirty(entity) &&
+      RenderDirty.dirty[entity] === 1
+    );
   }
 }
