@@ -16,7 +16,6 @@ import {
 
 import {
   RenderStateBuffer,
-  type RenderState,
 } from '@/game/rendering/RenderStateBuffer';
 
 import type {
@@ -57,12 +56,17 @@ export class RenderSystem {
 
     this.renderStateBuffer.beginFrame();
 
-    const activeEntities =
-      new Set<number>();
-
     for (
       const entity of entities
     ) {
+      /*
+       * Existence in ECS is independent from
+       * visibility in the current viewport.
+       */
+      this.renderStateBuffer.markPresent(
+        entity,
+      );
+
       const interpolatedX =
         Transform.previousX[entity] +
         (
@@ -80,8 +84,10 @@ export class RenderSystem {
         alpha;
 
       /*
-       * Culling happens before the entity
-       * enters the active render state.
+       * Culling affects rendering only.
+       *
+       * The entity remains present in the buffer
+       * even when it is outside the viewport.
        */
       if (
         !this.isInsideCullingBounds(
@@ -93,10 +99,6 @@ export class RenderSystem {
         continue;
       }
 
-      activeEntities.add(
-        entity,
-      );
-
       const renderable =
         world.getRenderable(entity);
 
@@ -104,48 +106,40 @@ export class RenderSystem {
         continue;
       }
 
-      const state: RenderState = {
-        x: interpolatedX,
-        y: interpolatedY,
-
-        rotation:
-          Transform.previousRotation[entity] +
-          (
-            Transform.rotation[entity] -
-            Transform.previousRotation[entity]
-          ) *
-          alpha,
-
-        visible:
-          renderable.visible,
-
-        layer:
-          renderable.layer,
-
-        type:
-          renderable.type,
-
-        assetKey:
-          renderable.assetKey,
-
-        visualVariant:
-          renderable.visualVariant,
-      };
+      const interpolatedRotation =
+        Transform.previousRotation[entity] +
+        (
+          Transform.rotation[entity] -
+          Transform.previousRotation[entity]
+        ) *
+        alpha;
 
       const changed =
         this.renderStateBuffer.update(
           entity,
-          state,
+
+          interpolatedX,
+          interpolatedY,
+          interpolatedRotation,
+
+          renderable.visible,
+          renderable.layer,
+
+          renderable.type,
+          renderable.assetKey,
+          renderable.visualVariant,
         );
 
-      /*
-       * Static / unchanged entities stop here.
-       *
-       * Moving entities, newly created entities,
-       * visibility changes, layer changes, etc.
-       * continue into RenderWorld.
-       */
       if (!changed) {
+        continue;
+      }
+
+      const state =
+        this.renderStateBuffer.get(
+          entity,
+        );
+
+      if (!state) {
         continue;
       }
 
@@ -189,24 +183,27 @@ export class RenderSystem {
       }
     }
 
-    const removedEntities =
-      this.renderStateBuffer.endFrame();
+    const visibleEntities =
+      this.renderStateBuffer
+        .getVisibleEntities();
 
     /*
-     * RenderWorld owns Pixi display objects,
-     * therefore it must remove objects that
-     * are no longer inside the active render set.
+     * RenderWorld removes Pixi objects that are
+     * outside the current culling bounds.
+     *
+     * Their RenderState remains in the buffer.
      */
     this.renderWorld.removeMissingEntities(
-      activeEntities,
+      visibleEntities,
     );
 
     /*
-     * Keep the buffer cleanup explicit as well.
-     *
-     * Normally endFrame() already removed these,
-     * but this makes the ownership relationship clear.
+     * Only actual ECS removal deletes the
+     * corresponding RenderState.
      */
+    const removedEntities =
+      this.renderStateBuffer.endFrame();
+
     for (
       const entity
       of removedEntities

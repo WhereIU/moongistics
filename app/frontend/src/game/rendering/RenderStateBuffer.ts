@@ -19,93 +19,165 @@ export class RenderStateBuffer {
   private readonly states =
     new Map<number, RenderState>();
 
-  private readonly activeEntities =
+  /**
+   * Entities that still exist in ECS
+   * during the current frame.
+   */
+  private readonly presentEntities =
     new Set<number>();
 
   /**
-   * Starts a new render frame.
-   *
-   * Entities that are not touched during this frame
-   * will be removed in endFrame().
+   * Entities currently inside the render culling bounds.
    */
+  private readonly visibleEntities =
+    new Set<number>();
+
+  /**
+   * Entities that were inside the culling bounds
+   * during the previous render frame.
+   */
+  private readonly previousVisibleEntities =
+    new Set<number>();
+
   public beginFrame(): void {
-    this.activeEntities.clear();
+    this.presentEntities.clear();
+
+    this.previousVisibleEntities.clear();
+
+    for (
+      const entity
+      of this.visibleEntities
+    ) {
+      this.previousVisibleEntities.add(
+        entity,
+      );
+    }
+
+    this.visibleEntities.clear();
   }
 
   /**
-   * Updates the buffered render state.
+   * Marks an entity as existing in the ECS.
    *
-   * Returns true when the state actually changed
-   * or the entity did not exist in the buffer yet.
+   * This is intentionally separate from update():
+   * an entity may exist in ECS while being outside
+   * the current render viewport.
+   */
+  public markPresent(
+    entity: number,
+  ): void {
+    this.presentEntities.add(
+      entity,
+    );
+  }
+
+  /**
+   * Updates the render state of an entity that
+   * passed culling.
    *
-   * Returns false when the existing render state
-   * can be reused as-is.
+   * Returns true when RenderWorld needs to receive
+   * the state.
+   *
+   * This is also true when the entity has just
+   * returned from outside the culling bounds,
+   * even if its state itself did not change.
    */
   public update(
     entity: number,
-    state: RenderState,
+
+    x: number,
+    y: number,
+    rotation: number,
+
+    visible: boolean,
+    layer: number,
+
+    type: RenderTypeId,
+    assetKey: string,
+    visualVariant: number,
   ): boolean {
-    this.activeEntities.add(
+    this.visibleEntities.add(
       entity,
     );
 
-    const previous =
+    const state =
       this.states.get(entity);
 
-    if (!previous) {
+    if (!state) {
       this.states.set(
         entity,
         {
-          ...state,
+          x,
+          y,
+          rotation,
+
+          visible,
+          layer,
+
+          type,
+          assetKey,
+          visualVariant,
         },
       );
 
       return true;
     }
 
-    if (
-      previous.x === state.x &&
-      previous.y === state.y &&
-      previous.rotation === state.rotation &&
-      previous.visible === state.visible &&
-      previous.layer === state.layer &&
-      previous.type === state.type &&
-      previous.assetKey === state.assetKey &&
-      previous.visualVariant === state.visualVariant
-    ) {
-      return false;
-    }
+    const changed =
+      !(
+        state.x === x &&
+        state.y === y &&
+        state.rotation === rotation &&
+        state.visible === visible &&
+        state.layer === layer &&
+        state.type === type &&
+        state.assetKey === assetKey &&
+        state.visualVariant === visualVariant
+      );
 
-    previous.x =
-      state.x;
+    state.x =
+      x;
 
-    previous.y =
-      state.y;
+    state.y =
+      y;
 
-    previous.rotation =
-      state.rotation;
+    state.rotation =
+      rotation;
 
-    previous.visible =
-      state.visible;
+    state.visible =
+      visible;
 
-    previous.layer =
-      state.layer;
+    state.layer =
+      layer;
 
-    previous.type =
-      state.type;
+    state.type =
+      type;
 
-    previous.assetKey =
-      state.assetKey;
+    state.assetKey =
+      assetKey;
 
-    previous.visualVariant =
-      state.visualVariant;
+    state.visualVariant =
+      visualVariant;
 
-    return true;
+    /*
+     * The Pixi object may have been removed while
+     * the entity was outside the culling bounds.
+     *
+     * Therefore returning to the viewport is a
+     * render change even when the state itself
+     * remained unchanged.
+     */
+    const returnedToViewport =
+      !this.previousVisibleEntities.has(
+        entity,
+      );
+
+    return (
+      changed ||
+      returnedToViewport
+    );
   }
 
-  /**
-   * Returns the currently buffered state.
-   */
   public get(
     entity: number,
   ): RenderState | undefined {
@@ -115,10 +187,12 @@ export class RenderStateBuffer {
   }
 
   /**
-   * Removes entities that were not active
-   * during the current render frame.
+   * Finishes the frame.
    *
-   * Returns the removed entity ids.
+   * Only entities that disappeared from ECS are
+   * removed from the buffer.
+   *
+   * Leaving the viewport does NOT remove the state.
    */
   public endFrame(): number[] {
     const removedEntities: number[] = [];
@@ -128,7 +202,9 @@ export class RenderStateBuffer {
       of this.states.keys()
     ) {
       if (
-        this.activeEntities.has(entity)
+        this.presentEntities.has(
+          entity,
+        )
       ) {
         continue;
       }
@@ -145,6 +221,14 @@ export class RenderStateBuffer {
     return removedEntities;
   }
 
+  /**
+   * Returns entities that are inside the current
+   * culling bounds.
+   */
+  public getVisibleEntities(): Set<number> {
+    return this.visibleEntities;
+  }
+
   public remove(
     entity: number,
   ): void {
@@ -152,14 +236,25 @@ export class RenderStateBuffer {
       entity,
     );
 
-    this.activeEntities.delete(
+    this.presentEntities.delete(
+      entity,
+    );
+
+    this.visibleEntities.delete(
+      entity,
+    );
+
+    this.previousVisibleEntities.delete(
       entity,
     );
   }
 
   public clear(): void {
     this.states.clear();
-    this.activeEntities.clear();
+
+    this.presentEntities.clear();
+    this.visibleEntities.clear();
+    this.previousVisibleEntities.clear();
   }
 
   public has(
