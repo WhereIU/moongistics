@@ -1,7 +1,5 @@
 import {
   Assets,
-  Cache,
-  Rectangle,
   Texture,
 } from 'pixi.js';
 
@@ -10,57 +8,187 @@ import {
 } from '@/prototypes/registry/PrototypeRegistry';
 
 import {
-  generateGridFrames,
-} from '@/shared/utils/spritesheet';
+  AssetRegistry,
+} from '@/shared/assets/AssetRegistry';
 
 import type {
-  FrameRect,
-  TilePrototype,
+  AnimationDefinition,
+  AssetSource,
+  BasePrototype,
+  FrameSetDefinition,
 } from '@/prototypes/base/types';
 
-import {
-  isTilePrototype,
-} from '@/prototypes/base/types';
+export const assetRegistry =
+  new AssetRegistry();
 
-function cacheTileFrames(
-  proto: TilePrototype,
-  baseTexture: Texture,
-): void {
-  let frames: FrameRect[] = [];
+interface RegisteredFrameSet {
+  id: string;
+  definition: FrameSetDefinition;
+}
 
-  if (proto.gridConfig) {
-    frames = generateGridFrames(
-      baseTexture.width,
-      baseTexture.height,
-      proto.gridConfig,
-    );
-  } else if (proto.frames) {
-    frames = proto.frames;
+interface RegisteredAsset {
+  source: AssetSource;
+}
+
+function collectFrameSets(
+  prototype: BasePrototype,
+): RegisteredFrameSet[] {
+  const result: RegisteredFrameSet[] = [];
+
+  const render =
+    prototype.render;
+
+  if (!render) {
+    return result;
   }
 
+  if (render.static) {
+    result.push({
+      id:
+        `${prototype.type}.${prototype.id}.static`,
+
+      definition:
+        render.static,
+    });
+  }
+
+  if (render.animations) {
+    for (
+      const [
+        animationId,
+        animation,
+      ]
+      of Object.entries(
+        render.animations,
+      )
+    ) {
+      result.push({
+        id:
+          `${prototype.type}.${prototype.id}.animation.${animationId}`,
+
+        definition:
+          animation.frames,
+      });
+    }
+  }
+
+  return result;
+}
+
+function collectAssets(
+  prototypes: BasePrototype[],
+): RegisteredAsset[] {
+  const assets =
+    new Map<string, RegisteredAsset>();
+
   for (
-    let index = 0;
-    index < frames.length;
-    index += 1
+    const prototype
+    of prototypes
   ) {
-    const frame = frames[index];
+    const frameSets =
+      collectFrameSets(
+        prototype,
+      );
+
+    for (
+      const frameSet
+      of frameSets
+    ) {
+      const source =
+        frameSet.definition.source;
+
+      const key =
+        source.key ??
+        source.url;
+
+      if (
+        assets.has(key)
+      ) {
+        continue;
+      }
+
+      assets.set(
+        key,
+        {
+          source,
+        },
+      );
+    }
+  }
+
+  return [
+    ...assets.values(),
+  ];
+}
+
+async function loadAssets(
+  assets: RegisteredAsset[],
+): Promise<void> {
+  for (
+    const asset
+    of assets
+  ) {
+    const key =
+      asset.source.key ??
+      asset.source.url;
+
+    Assets.add({
+      alias: key,
+      src: asset.source.url,
+    });
+  }
+
+  await Promise.all(
+    assets.map(
+      (asset) =>
+        Assets.load(
+          asset.source.key ??
+          asset.source.url,
+        ),
+    ),
+  );
+
+  for (
+    const asset
+    of assets
+  ) {
+    const key =
+      asset.source.key ??
+      asset.source.url;
 
     const texture =
-      new Texture({
-        source: baseTexture.source,
+      Assets.get<Texture>(
+        key,
+      );
 
-        frame: new Rectangle(
-          frame.x,
-          frame.y,
-          frame.w,
-          frame.h,
-        ),
-      });
+    if (texture) {
+      texture.source.scaleMode =
+        'nearest';
+    }
+  }
+}
 
-    Cache.set(
-      `${proto.textureKey}_${index}`,
-      texture,
-    );
+function buildFrameSets(
+  prototypes: BasePrototype[],
+): void {
+  for (
+    const prototype
+    of prototypes
+  ) {
+    const frameSets =
+      collectFrameSets(
+        prototype,
+      );
+
+    for (
+      const frameSet
+      of frameSets
+    ) {
+      assetRegistry.registerFrameSet(
+        frameSet.id,
+        frameSet.definition,
+      );
+    }
   }
 }
 
@@ -68,70 +196,16 @@ export async function loadGameAssets(): Promise<void> {
   const prototypes =
     PrototypeRegistry.getAll();
 
-  const aliases =
-    new Set<string>();
-
-  // Register base assets.
-  for (
-    const proto
-    of prototypes
-  ) {
-    if (
-      !proto.textureUrl ||
-      aliases.has(proto.textureKey)
-    ) {
-      continue;
-    }
-
-    Assets.add({
-      alias: proto.textureKey,
-      src: proto.textureUrl,
-    });
-
-    aliases.add(
-      proto.textureKey,
+  const assets =
+    collectAssets(
+      prototypes,
     );
-  }
 
-  // Load base assets.
-  await Promise.all(
-    [...aliases].map(
-      (textureKey) =>
-        Assets.load(textureKey),
-    ),
+  await loadAssets(
+    assets,
   );
 
-  // Build variant textures.
-  for (
-    const proto
-    of prototypes
-  ) {
-    if (
-      !isTilePrototype(proto)
-    ) {
-      continue;
-    }
-
-    const baseTexture =
-      Assets.get<Texture>(
-        proto.textureKey,
-      );
-
-    if (!baseTexture) {
-      continue;
-    }
-
-    if (
-      proto.gridConfig ||
-      proto.frames
-    ) {
-      cacheTileFrames(
-        proto,
-        baseTexture,
-      );
-    }
-
-    baseTexture.source.scaleMode =
-      'nearest';
-  }
+  buildFrameSets(
+    prototypes,
+  );
 }
