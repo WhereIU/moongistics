@@ -13,6 +13,13 @@ export interface RenderState {
   type: RenderTypeId;
   assetKey: string;
   visualVariant: number;
+
+  /**
+   * Current animation frame.
+   *
+   * For non-animated renderables this remains 0.
+   */
+  animationFrame: number;
 }
 
 export class RenderStateBuffer {
@@ -86,8 +93,7 @@ export class RenderStateBuffer {
   /**
    * Updates render-relevant visual state.
    *
-   * Creates the state when the entity does not
-   * exist in the buffer yet.
+   * Returns true when something changed.
    */
   public updateRenderable(
     entity: number,
@@ -98,6 +104,8 @@ export class RenderStateBuffer {
     type: RenderTypeId,
     assetKey: string,
     visualVariant: number,
+
+    animationFrame: number,
   ): boolean {
     const state =
       this.states.get(entity);
@@ -111,13 +119,26 @@ export class RenderStateBuffer {
       state.layer !== layer ||
       state.type !== type ||
       state.assetKey !== assetKey ||
-      state.visualVariant !== visualVariant;
+      state.visualVariant !== visualVariant ||
+      state.animationFrame !== animationFrame;
 
-    state.visible = visible;
-    state.layer = layer;
-    state.type = type;
-    state.assetKey = assetKey;
-    state.visualVariant = visualVariant;
+    state.visible =
+      visible;
+
+    state.layer =
+      layer;
+
+    state.type =
+      type;
+
+    state.assetKey =
+      assetKey;
+
+    state.visualVariant =
+      visualVariant;
+
+    state.animationFrame =
+      animationFrame;
 
     return changed;
   }
@@ -138,6 +159,8 @@ export class RenderStateBuffer {
     type: RenderTypeId,
     assetKey: string,
     visualVariant: number,
+
+    animationFrame: number,
   ): void {
     this.states.set(
       entity,
@@ -152,6 +175,8 @@ export class RenderStateBuffer {
         type,
         assetKey,
         visualVariant,
+
+        animationFrame,
       },
     );
   }

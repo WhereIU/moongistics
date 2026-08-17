@@ -112,8 +112,10 @@ export class RenderSystem {
 
       /*
        * New entity:
-       * the buffer has no visual state yet,
-       * therefore ECS Renderable must be read.
+       *
+       * The buffer has no state yet, so ECS
+       * render data must be read regardless
+       * of RenderDirty.
        */
       if (isNew) {
         const renderable =
@@ -122,6 +124,9 @@ export class RenderSystem {
         if (!renderable) {
           continue;
         }
+
+        const animation =
+          world.getAnimation(entity);
 
         this.renderStateBuffer.create(
           entity,
@@ -136,6 +141,8 @@ export class RenderSystem {
           renderable.type,
           renderable.assetKey,
           renderable.visualVariant,
+
+          animation?.frame ?? 0,
         );
 
         changed = true;
@@ -143,7 +150,7 @@ export class RenderSystem {
         /*
          * Transform is render-frame data.
          *
-         * It must be updated every frame so
+         * It is updated every render frame so
          * interpolation remains smooth.
          */
         changed =
@@ -155,8 +162,10 @@ export class RenderSystem {
           );
 
         /*
-         * Renderable data is only read from ECS
-         * when explicitly marked dirty.
+         * Renderable and Animation are event-like
+         * visual state.
+         *
+         * ECS is only read when the entity is dirty.
          */
         if (
           world.isRenderDirty(entity)
@@ -165,6 +174,9 @@ export class RenderSystem {
             world.getRenderable(entity);
 
           if (renderable) {
+            const animation =
+              world.getAnimation(entity);
+
             changed =
               this.renderStateBuffer.updateRenderable(
                 entity,
@@ -175,6 +187,8 @@ export class RenderSystem {
                 renderable.type,
                 renderable.assetKey,
                 renderable.visualVariant,
+
+                animation?.frame ?? 0,
               ) ||
               changed;
           }
@@ -186,11 +200,16 @@ export class RenderSystem {
       }
 
       /*
-       * An entity returning from culling needs
-       * its Pixi object recreated even if its
-       * buffered state itself did not change.
+       * RenderWorld may have destroyed the Pixi
+       * object while this entity was outside
+       * the culling bounds.
+       *
+       * Its buffered state is still valid, so
+       * returning to the viewport forces a sync.
        */
-      if (returnedToViewport) {
+      if (
+        returnedToViewport
+      ) {
         changed = true;
       }
 
@@ -210,17 +229,33 @@ export class RenderSystem {
       this.renderWorld.syncEntity(
         entity,
         {
-          x: state.x,
-          y: state.y,
-          rotation: state.rotation,
+          x:
+            state.x,
 
-          visible: state.visible,
-          layer: state.layer,
+          y:
+            state.y,
+
+          rotation:
+            state.rotation,
+
+          visible:
+            state.visible,
+
+          layer:
+            state.layer,
 
           renderable: {
-            type: state.type,
-            assetKey: state.assetKey,
-            visualVariant: state.visualVariant,
+            type:
+              state.type,
+
+            assetKey:
+              state.assetKey,
+
+            visualVariant:
+              state.visualVariant,
+
+            animationFrame:
+              state.animationFrame,
           },
         },
       );

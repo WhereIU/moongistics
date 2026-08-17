@@ -18,6 +18,12 @@ export interface RenderObjectData {
 
   // Normalized ECS value.
   visualVariant: number;
+
+  // Current animation frame.
+  //
+  // The actual frame texture collection will be
+  // connected when animated asset definitions are added.
+  animationFrame: number;
 }
 
 export class RenderObjectFactory {
@@ -61,6 +67,16 @@ export class RenderObjectFactory {
   private createAnimatedSprite(
     data: RenderObjectData,
   ): AnimatedSprite {
+    /*
+     * Animation frame collection is intentionally
+     * not implemented yet.
+     *
+     * For now the animated object is created from
+     * the same base/variant texture as before.
+     *
+     * The next asset/prototype step will provide
+     * the actual frame texture collection.
+     */
     const texture =
       this.resolveTexture(
         data.assetKey,
@@ -93,8 +109,6 @@ export class RenderObjectFactory {
       return cachedTexture;
     }
 
-    // No variant texture exists.
-    // Use the base asset as the fallback.
     const baseTexture =
       Assets.get<Texture>(
         assetKey,

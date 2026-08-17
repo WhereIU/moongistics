@@ -1,4 +1,5 @@
 import {
+  AnimatedSprite,
   Container,
   type ContainerChild,
 } from 'pixi.js';
@@ -23,6 +24,7 @@ export interface RenderEntityState {
     type: RenderTypeId;
     assetKey: string;
     visualVariant: number;
+    animationFrame: number;
   };
 }
 
@@ -33,6 +35,8 @@ interface AppliedRenderState {
 
   visible: boolean;
   layer: number;
+
+  animationFrame: number;
 }
 
 export class RenderWorld {
@@ -134,6 +138,34 @@ export class RenderWorld {
         state.layer;
     }
 
+    if (
+      object instanceof AnimatedSprite &&
+      (
+        !previous ||
+        previous.animationFrame !==
+          state.renderable.animationFrame
+      )
+    ) {
+      /*
+       * The actual animation texture list will be
+       * provided by RenderObjectFactory once the
+       * animated asset format is introduced.
+       *
+       * Until then, currentFrame is only applied
+       * when the AnimatedSprite actually has that
+       * frame available.
+       */
+      if (
+        state.renderable.animationFrame >= 0 &&
+        state.renderable.animationFrame <
+          object.totalFrames
+      ) {
+        object.gotoAndStop(
+          state.renderable.animationFrame,
+        );
+      }
+    }
+
     this.states.set(
       entity,
       {
@@ -151,6 +183,9 @@ export class RenderWorld {
 
         layer:
           state.layer,
+
+        animationFrame:
+          state.renderable.animationFrame,
       },
     );
   }

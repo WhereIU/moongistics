@@ -103,8 +103,6 @@ export class EcsWorldFacade {
     Transform.y[entity] = y;
     Transform.rotation[entity] = rotation;
 
-    // Initial render state has no previous simulation tick.
-    // Therefore previous == current.
     Transform.previousX[entity] = x;
     Transform.previousY[entity] = y;
     Transform.previousRotation[entity] = rotation;
@@ -214,7 +212,9 @@ export class EcsWorldFacade {
     Animation.loop[entity] =
       data.loop === false ? 0 : 1;
 
-    if (this.hasRenderable(entity)) {
+    if (
+      this.hasRenderable(entity)
+    ) {
       this.markRenderDirty(entity);
     }
   }
@@ -236,7 +236,9 @@ export class EcsWorldFacade {
   public markRenderDirty(
     entity: EcsEntity,
   ): void {
-    if (!this.hasRenderDirty(entity)) {
+    if (
+      !this.hasRenderDirty(entity)
+    ) {
       return;
     }
 
@@ -246,7 +248,9 @@ export class EcsWorldFacade {
   public clearRenderDirty(
     entity: EcsEntity,
   ): void {
-    if (!this.hasRenderDirty(entity)) {
+    if (
+      !this.hasRenderDirty(entity)
+    ) {
       return;
     }
 
@@ -313,11 +317,15 @@ export class EcsWorldFacade {
   public removeRenderable(
     entity: EcsEntity,
   ): void {
-    if (!this.hasRenderable(entity)) {
+    if (
+      !this.hasRenderable(entity)
+    ) {
       return;
     }
 
-    if (this.hasRenderDirty(entity)) {
+    if (
+      this.hasRenderDirty(entity)
+    ) {
       removeComponent(
         this.raw,
         entity,
@@ -343,7 +351,9 @@ export class EcsWorldFacade {
     y: number;
     rotation: number;
   } | null {
-    if (!this.hasPosition(entity)) {
+    if (
+      !this.hasPosition(entity)
+    ) {
       return null;
     }
 
@@ -363,7 +373,9 @@ export class EcsWorldFacade {
     visible: boolean;
     layer: number;
   } | null {
-    if (!this.hasRenderable(entity)) {
+    if (
+      !this.hasRenderable(entity)
+    ) {
       return null;
     }
 
@@ -376,6 +388,27 @@ export class EcsWorldFacade {
         Renderable.visible[entity] !== 0,
       layer:
         Renderable.layer[entity],
+    };
+  }
+
+  public getAnimation(
+    entity: EcsEntity,
+  ): {
+    frame: number;
+    frameCount: number;
+  } | null {
+    if (
+      !this.hasAnimation(entity)
+    ) {
+      return null;
+    }
+
+    return {
+      frame:
+        Animation.frame[entity],
+
+      frameCount:
+        Animation.frameCount[entity],
     };
   }
 }
