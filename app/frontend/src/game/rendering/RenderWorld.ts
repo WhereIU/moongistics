@@ -42,13 +42,6 @@ export class RenderWorld {
   private readonly objects =
     new Map<number, ContainerChild>();
 
-  /**
-   * Последнее состояние, которое реально было
-   * применено к Pixi-объекту.
-   *
-   * Это отделено от ECS state:
-   * здесь хранится именно состояние render-object.
-   */
   private readonly states =
     new Map<number, AppliedRenderState>();
 
@@ -144,11 +137,20 @@ export class RenderWorld {
     this.states.set(
       entity,
       {
-        x: state.x,
-        y: state.y,
-        rotation: state.rotation,
-        visible: state.visible,
-        layer: state.layer,
+        x:
+          state.x,
+
+        y:
+          state.y,
+
+        rotation:
+          state.rotation,
+
+        visible:
+          state.visible,
+
+        layer:
+          state.layer,
       },
     );
   }
@@ -199,8 +201,13 @@ export class RenderWorld {
     object.removeFromParent();
     object.destroy();
 
-    this.objects.delete(entity);
-    this.states.delete(entity);
+    this.objects.delete(
+      entity,
+    );
+
+    this.states.delete(
+      entity,
+    );
   }
 
   public clear(): void {
@@ -224,10 +231,14 @@ export class RenderWorld {
       of this.objects.keys()
     ) {
       if (
-        !activeEntities.has(entity)
+        activeEntities.has(entity)
       ) {
-        this.removeEntity(entity);
+        continue;
       }
+
+      this.removeEntity(
+        entity,
+      );
     }
   }
 

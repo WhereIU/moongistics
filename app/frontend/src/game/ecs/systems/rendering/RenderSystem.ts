@@ -14,12 +14,21 @@ import {
   RenderWorld,
 } from '@/game/rendering/RenderWorld';
 
+import {
+  RenderStateBuffer,
+  type RenderState,
+} from '@/game/rendering/RenderStateBuffer';
+
 import type {
   ViewportBounds,
 } from '@/features/camera-control/CameraControl';
 
 export class RenderSystem {
   private readonly renderWorld: RenderWorld;
+
+  private readonly renderStateBuffer:
+    RenderStateBuffer;
+
   private readonly cullingMargin: number;
 
   public constructor(
@@ -28,6 +37,9 @@ export class RenderSystem {
     cullingTiles: number,
   ) {
     this.renderWorld = renderWorld;
+
+    this.renderStateBuffer =
+      new RenderStateBuffer();
 
     this.cullingMargin =
       tileSize * cullingTiles;
@@ -39,7 +51,11 @@ export class RenderSystem {
     viewport: ViewportBounds,
   ): void {
     const entities =
-      queries.renderable(world.raw);
+      queries.renderable(
+        world.raw,
+      );
+
+    this.renderStateBuffer.beginFrame();
 
     const activeEntities =
       new Set<number>();
@@ -64,10 +80,8 @@ export class RenderSystem {
         alpha;
 
       /*
-       * Culling uses the interpolated render position.
-       *
-       * The viewport is expanded by the configured
-       * number of tile sizes in every direction.
+       * Culling happens before the entity
+       * enters the active render state.
        */
       if (
         !this.isInsideCullingBounds(
@@ -79,7 +93,9 @@ export class RenderSystem {
         continue;
       }
 
-      activeEntities.add(entity);
+      activeEntities.add(
+        entity,
+      );
 
       const renderable =
         world.getRenderable(entity);
@@ -88,35 +104,78 @@ export class RenderSystem {
         continue;
       }
 
+      const state: RenderState = {
+        x: interpolatedX,
+        y: interpolatedY,
+
+        rotation:
+          Transform.previousRotation[entity] +
+          (
+            Transform.rotation[entity] -
+            Transform.previousRotation[entity]
+          ) *
+          alpha,
+
+        visible:
+          renderable.visible,
+
+        layer:
+          renderable.layer,
+
+        type:
+          renderable.type,
+
+        assetKey:
+          renderable.assetKey,
+
+        visualVariant:
+          renderable.visualVariant,
+      };
+
+      const changed =
+        this.renderStateBuffer.update(
+          entity,
+          state,
+        );
+
+      /*
+       * Static / unchanged entities stop here.
+       *
+       * Moving entities, newly created entities,
+       * visibility changes, layer changes, etc.
+       * continue into RenderWorld.
+       */
+      if (!changed) {
+        continue;
+      }
+
       this.renderWorld.syncEntity(
         entity,
         {
-          x: interpolatedX,
-          y: interpolatedY,
+          x:
+            state.x,
+
+          y:
+            state.y,
 
           rotation:
-            Transform.previousRotation[entity] +
-            (
-              Transform.rotation[entity] -
-              Transform.previousRotation[entity]
-            ) *
-            alpha,
+            state.rotation,
 
           visible:
-            renderable.visible,
+            state.visible,
 
           layer:
-            renderable.layer,
+            state.layer,
 
           renderable: {
             type:
-              renderable.type,
+              state.type,
 
             assetKey:
-              renderable.assetKey,
+              state.assetKey,
 
             visualVariant:
-              renderable.visualVariant,
+              state.visualVariant,
           },
         },
       );
@@ -124,13 +183,38 @@ export class RenderSystem {
       if (
         world.isRenderDirty(entity)
       ) {
-        world.clearRenderDirty(entity);
+        world.clearRenderDirty(
+          entity,
+        );
       }
     }
 
+    const removedEntities =
+      this.renderStateBuffer.endFrame();
+
+    /*
+     * RenderWorld owns Pixi display objects,
+     * therefore it must remove objects that
+     * are no longer inside the active render set.
+     */
     this.renderWorld.removeMissingEntities(
       activeEntities,
     );
+
+    /*
+     * Keep the buffer cleanup explicit as well.
+     *
+     * Normally endFrame() already removed these,
+     * but this makes the ownership relationship clear.
+     */
+    for (
+      const entity
+      of removedEntities
+    ) {
+      this.renderWorld.removeEntity(
+        entity,
+      );
+    }
   }
 
   private isInsideCullingBounds(
