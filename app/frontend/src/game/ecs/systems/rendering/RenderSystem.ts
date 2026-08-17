@@ -59,10 +59,6 @@ export class RenderSystem {
     for (
       const entity of entities
     ) {
-      /*
-       * Existence in ECS is independent from
-       * visibility in the current viewport.
-       */
       this.renderStateBuffer.markPresent(
         entity,
       );
@@ -83,12 +79,6 @@ export class RenderSystem {
         ) *
         alpha;
 
-      /*
-       * Culling affects rendering only.
-       *
-       * The entity remains present in the buffer
-       * even when it is outside the viewport.
-       */
       if (
         !this.isInsideCullingBounds(
           interpolatedX,
@@ -99,12 +89,10 @@ export class RenderSystem {
         continue;
       }
 
-      const renderable =
-        world.getRenderable(entity);
-
-      if (!renderable) {
-        continue;
-      }
+      const returnedToViewport =
+        this.renderStateBuffer.markVisible(
+          entity,
+        );
 
       const interpolatedRotation =
         Transform.previousRotation[entity] +
@@ -114,8 +102,28 @@ export class RenderSystem {
         ) *
         alpha;
 
-      const changed =
-        this.renderStateBuffer.update(
+      const isNew =
+        !this.renderStateBuffer.has(
+          entity,
+        );
+
+      let changed =
+        false;
+
+      /*
+       * New entity:
+       * the buffer has no visual state yet,
+       * therefore ECS Renderable must be read.
+       */
+      if (isNew) {
+        const renderable =
+          world.getRenderable(entity);
+
+        if (!renderable) {
+          continue;
+        }
+
+        this.renderStateBuffer.create(
           entity,
 
           interpolatedX,
@@ -129,6 +137,62 @@ export class RenderSystem {
           renderable.assetKey,
           renderable.visualVariant,
         );
+
+        changed = true;
+      } else {
+        /*
+         * Transform is render-frame data.
+         *
+         * It must be updated every frame so
+         * interpolation remains smooth.
+         */
+        changed =
+          this.renderStateBuffer.updateTransform(
+            entity,
+            interpolatedX,
+            interpolatedY,
+            interpolatedRotation,
+          );
+
+        /*
+         * Renderable data is only read from ECS
+         * when explicitly marked dirty.
+         */
+        if (
+          world.isRenderDirty(entity)
+        ) {
+          const renderable =
+            world.getRenderable(entity);
+
+          if (renderable) {
+            changed =
+              this.renderStateBuffer.updateRenderable(
+                entity,
+
+                renderable.visible,
+                renderable.layer,
+
+                renderable.type,
+                renderable.assetKey,
+                renderable.visualVariant,
+              ) ||
+              changed;
+          }
+
+          world.clearRenderDirty(
+            entity,
+          );
+        }
+      }
+
+      /*
+       * An entity returning from culling needs
+       * its Pixi object recreated even if its
+       * buffered state itself did not change.
+       */
+      if (returnedToViewport) {
+        changed = true;
+      }
 
       if (!changed) {
         continue;
@@ -146,61 +210,30 @@ export class RenderSystem {
       this.renderWorld.syncEntity(
         entity,
         {
-          x:
-            state.x,
+          x: state.x,
+          y: state.y,
+          rotation: state.rotation,
 
-          y:
-            state.y,
-
-          rotation:
-            state.rotation,
-
-          visible:
-            state.visible,
-
-          layer:
-            state.layer,
+          visible: state.visible,
+          layer: state.layer,
 
           renderable: {
-            type:
-              state.type,
-
-            assetKey:
-              state.assetKey,
-
-            visualVariant:
-              state.visualVariant,
+            type: state.type,
+            assetKey: state.assetKey,
+            visualVariant: state.visualVariant,
           },
         },
       );
-
-      if (
-        world.isRenderDirty(entity)
-      ) {
-        world.clearRenderDirty(
-          entity,
-        );
-      }
     }
 
     const visibleEntities =
       this.renderStateBuffer
         .getVisibleEntities();
 
-    /*
-     * RenderWorld removes Pixi objects that are
-     * outside the current culling bounds.
-     *
-     * Their RenderState remains in the buffer.
-     */
     this.renderWorld.removeMissingEntities(
       visibleEntities,
     );
 
-    /*
-     * Only actual ECS removal deletes the
-     * corresponding RenderState.
-     */
     const removedEntities =
       this.renderStateBuffer.endFrame();
 

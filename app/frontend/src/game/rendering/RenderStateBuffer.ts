@@ -19,23 +19,12 @@ export class RenderStateBuffer {
   private readonly states =
     new Map<number, RenderState>();
 
-  /**
-   * Entities that still exist in ECS
-   * during the current frame.
-   */
   private readonly presentEntities =
     new Set<number>();
 
-  /**
-   * Entities currently inside the render culling bounds.
-   */
   private readonly visibleEntities =
     new Set<number>();
 
-  /**
-   * Entities that were inside the culling bounds
-   * during the previous render frame.
-   */
   private readonly previousVisibleEntities =
     new Set<number>();
 
@@ -56,13 +45,6 @@ export class RenderStateBuffer {
     this.visibleEntities.clear();
   }
 
-  /**
-   * Marks an entity as existing in the ECS.
-   *
-   * This is intentionally separate from update():
-   * an entity may exist in ECS while being outside
-   * the current render viewport.
-   */
   public markPresent(
     entity: number,
   ): void {
@@ -72,17 +54,78 @@ export class RenderStateBuffer {
   }
 
   /**
-   * Updates the render state of an entity that
-   * passed culling.
+   * Updates only the interpolated transform.
    *
-   * Returns true when RenderWorld needs to receive
-   * the state.
-   *
-   * This is also true when the entity has just
-   * returned from outside the culling bounds,
-   * even if its state itself did not change.
+   * Returns true when the transform changed.
    */
-  public update(
+  public updateTransform(
+    entity: number,
+    x: number,
+    y: number,
+    rotation: number,
+  ): boolean {
+    const state =
+      this.states.get(entity);
+
+    if (!state) {
+      return false;
+    }
+
+    const changed =
+      state.x !== x ||
+      state.y !== y ||
+      state.rotation !== rotation;
+
+    state.x = x;
+    state.y = y;
+    state.rotation = rotation;
+
+    return changed;
+  }
+
+  /**
+   * Updates render-relevant visual state.
+   *
+   * Creates the state when the entity does not
+   * exist in the buffer yet.
+   */
+  public updateRenderable(
+    entity: number,
+
+    visible: boolean,
+    layer: number,
+
+    type: RenderTypeId,
+    assetKey: string,
+    visualVariant: number,
+  ): boolean {
+    const state =
+      this.states.get(entity);
+
+    if (!state) {
+      return false;
+    }
+
+    const changed =
+      state.visible !== visible ||
+      state.layer !== layer ||
+      state.type !== type ||
+      state.assetKey !== assetKey ||
+      state.visualVariant !== visualVariant;
+
+    state.visible = visible;
+    state.layer = layer;
+    state.type = type;
+    state.assetKey = assetKey;
+    state.visualVariant = visualVariant;
+
+    return changed;
+  }
+
+  /**
+   * Creates the initial state for an entity.
+   */
+  public create(
     entity: number,
 
     x: number,
@@ -95,86 +138,41 @@ export class RenderStateBuffer {
     type: RenderTypeId,
     assetKey: string,
     visualVariant: number,
+  ): void {
+    this.states.set(
+      entity,
+      {
+        x,
+        y,
+        rotation,
+
+        visible,
+        layer,
+
+        type,
+        assetKey,
+        visualVariant,
+      },
+    );
+  }
+
+  /**
+   * Marks an entity as currently visible.
+   *
+   * Returns true if it has just entered the
+   * culling bounds.
+   */
+  public markVisible(
+    entity: number,
   ): boolean {
     this.visibleEntities.add(
       entity,
     );
 
-    const state =
-      this.states.get(entity);
-
-    if (!state) {
-      this.states.set(
-        entity,
-        {
-          x,
-          y,
-          rotation,
-
-          visible,
-          layer,
-
-          type,
-          assetKey,
-          visualVariant,
-        },
-      );
-
-      return true;
-    }
-
-    const changed =
-      !(
-        state.x === x &&
-        state.y === y &&
-        state.rotation === rotation &&
-        state.visible === visible &&
-        state.layer === layer &&
-        state.type === type &&
-        state.assetKey === assetKey &&
-        state.visualVariant === visualVariant
-      );
-
-    state.x =
-      x;
-
-    state.y =
-      y;
-
-    state.rotation =
-      rotation;
-
-    state.visible =
-      visible;
-
-    state.layer =
-      layer;
-
-    state.type =
-      type;
-
-    state.assetKey =
-      assetKey;
-
-    state.visualVariant =
-      visualVariant;
-
-    /*
-     * The Pixi object may have been removed while
-     * the entity was outside the culling bounds.
-     *
-     * Therefore returning to the viewport is a
-     * render change even when the state itself
-     * remained unchanged.
-     */
-    const returnedToViewport =
+    return (
       !this.previousVisibleEntities.has(
         entity,
-      );
-
-    return (
-      changed ||
-      returnedToViewport
+      )
     );
   }
 
@@ -186,14 +184,6 @@ export class RenderStateBuffer {
     );
   }
 
-  /**
-   * Finishes the frame.
-   *
-   * Only entities that disappeared from ECS are
-   * removed from the buffer.
-   *
-   * Leaving the viewport does NOT remove the state.
-   */
   public endFrame(): number[] {
     const removedEntities: number[] = [];
 
@@ -221,10 +211,6 @@ export class RenderStateBuffer {
     return removedEntities;
   }
 
-  /**
-   * Returns entities that are inside the current
-   * culling bounds.
-   */
   public getVisibleEntities(): Set<number> {
     return this.visibleEntities;
   }
