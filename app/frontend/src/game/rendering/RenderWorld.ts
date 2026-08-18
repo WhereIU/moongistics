@@ -1,37 +1,25 @@
 import {
   AnimatedSprite,
   Container,
+  Sprite,
   type ContainerChild,
   type Texture,
 } from 'pixi.js';
 
-import type {
-  RenderObjectFactory,
-} from './RenderObjectFactory';
-
-import type {
-  RenderTypeId,
-} from '@/game/ecs/components/rendering';
+import type { RenderObjectFactory } from './RenderObjectFactory';
+import type { RenderTypeId } from '@/game/ecs/components/rendering';
 
 export interface RenderEntityState {
   x: number;
   y: number;
   rotation: number;
-
   visible: boolean;
   layer: number;
-
   renderable: {
     type: RenderTypeId;
-
-    frames:
-      readonly Texture[];
-
-    frame:
-      number;
-
-    tint:
-      number | null;
+    frames: readonly Texture[];
+    frame: number;
+    tint: number | null;
   };
 }
 
@@ -39,268 +27,145 @@ interface AppliedRenderState {
   x: number;
   y: number;
   rotation: number;
-
   visible: boolean;
   layer: number;
-
+  type: RenderTypeId;
+  frames: readonly Texture[];
   frame: number;
+  tint: number | null;
 }
 
 export class RenderWorld {
   private readonly container: Container;
+  private readonly factory: RenderObjectFactory;
+  private readonly objects = new Map<number, ContainerChild>();
+  private readonly states = new Map<number, AppliedRenderState>();
+  private readonly layerContainers = new Map<number, Container>();
 
-  private readonly factory:
-    RenderObjectFactory;
-
-  private readonly objects =
-    new Map<
-      number,
-      ContainerChild
-    >();
-
-  private readonly states =
-    new Map<
-      number,
-      AppliedRenderState
-    >();
-
-  public constructor(
-    container: Container,
-    factory: RenderObjectFactory,
-  ) {
-    this.container =
-      container;
-
-    this.factory =
-      factory;
+  public constructor(container: Container, factory: RenderObjectFactory) {
+    this.container = container;
+    this.factory = factory;
+    this.container.sortableChildren = true;
   }
 
-  public syncEntity(
-    entity: number,
-    state: RenderEntityState,
-  ): void {
-    const existingObject =
-      this.objects.get(
-        entity,
-      );
+  public syncEntity(entity: number, state: RenderEntityState): void {
+    let object = this.objects.get(entity);
+    const previous = this.states.get(entity);
 
-    if (
-      existingObject
-    ) {
-      this.updateObject(
-        entity,
-        existingObject,
-        state,
-      );
+    const renderableChanged = previous !== undefined &&
+      (previous.type !== state.renderable.type || previous.frames !== state.renderable.frames);
 
-      return;
+    if (object && renderableChanged) {
+      this.destroyObject(entity, object);
+      object = undefined;
     }
 
-    const object =
-      this.factory.create(
-        state.renderable,
-      );
+    if (!object) {
+      object = this.factory.create(state.renderable);
+      this.objects.set(entity, object);
+      this.getLayerContainer(state.layer).addChild(object);
+    } else if (previous && previous.layer !== state.layer) {
+      object.removeFromParent();
+      this.getLayerContainer(state.layer).addChild(object);
+    }
 
-    this.objects.set(
-      entity,
-      object,
-    );
-
-    this.container.addChild(
-      object,
-    );
-
-    this.updateObject(
-      entity,
-      object,
-      state,
-    );
+    this.updateObject(entity, object, state);
   }
 
-  private updateObject(
-    entity: number,
-    object: ContainerChild,
-    state: RenderEntityState,
-  ): void {
-    const previous =
-      this.states.get(
-        entity,
-      );
+  private getLayerContainer(layer: number): Container {
+    const existing = this.layerContainers.get(layer);
+    if (existing) return existing;
 
-    if (
-      !previous ||
-      previous.x !== state.x ||
-      previous.y !== state.y
-    ) {
-      object.position.set(
-        state.x,
-        state.y,
-      );
+    const layerContainer = new Container();
+    layerContainer.zIndex = layer;
+    this.layerContainers.set(layer, layerContainer);
+    this.container.addChild(layerContainer);
+    return layerContainer;
+  }
+
+  private updateObject(entity: number, object: ContainerChild, state: RenderEntityState): void {
+    const previous = this.states.get(entity);
+
+    if (!previous || previous.x !== state.x || previous.y !== state.y) {
+      object.position.set(state.x, state.y);
+    }
+    if (!previous || previous.rotation !== state.rotation) {
+      object.rotation = state.rotation;
+    }
+    if (!previous || previous.visible !== state.visible) {
+      object.visible = state.visible;
     }
 
-    if (
-      !previous ||
-      previous.rotation !==
-        state.rotation
-    ) {
-      object.rotation =
-        state.rotation;
-    }
+    const frame = state.renderable.frame;
 
-    if (
-      !previous ||
-      previous.visible !==
-        state.visible
-    ) {
-      object.visible =
-        state.visible;
-    }
-
-    if (
-      !previous ||
-      previous.layer !==
-        state.layer
-    ) {
-      object.zIndex =
-        state.layer;
-    }
-
-    if (
-      object instanceof AnimatedSprite &&
-      (
-        !previous ||
-        previous.frame !==
-          state.renderable.frame
-      )
-    ) {
-      if (
-        state.renderable.frame >= 0 &&
-        state.renderable.frame <
-          object.totalFrames
-      ) {
-        object.gotoAndStop(
-          state.renderable.frame,
-        );
+    if (object instanceof AnimatedSprite) {
+      if (!previous || previous.frame !== frame) {
+        if (frame < 0 || frame >= object.totalFrames) {
+          throw new Error(`[RenderWorld] Frame index ${frame} is outside the available range for entity ${entity}.`);
+        }
+        object.gotoAndStop(frame);
+      }
+    } else if (object instanceof Sprite) {
+      if (!previous || previous.frames !== state.renderable.frames || previous.frame !== frame) {
+        const texture = state.renderable.frames[frame];
+        if (!texture) {
+          throw new Error(`[RenderWorld] Frame index ${frame} is outside the available range for entity ${entity}.`);
+        }
+        object.texture = texture;
       }
     }
 
-    this.states.set(
-      entity,
-      {
-        x:
-          state.x,
+    if (!previous || previous.tint !== state.renderable.tint) {
+      if (object instanceof Sprite || object instanceof AnimatedSprite) {
+        object.tint = state.renderable.tint ?? 0xffffff;
+      }
+    }
 
-        y:
-          state.y,
-
-        rotation:
-          state.rotation,
-
-        visible:
-          state.visible,
-
-        layer:
-          state.layer,
-
-        frame:
-          state.renderable.frame,
-      },
-    );
+    this.states.set(entity, {
+      x: state.x,
+      y: state.y,
+      rotation: state.rotation,
+      visible: state.visible,
+      layer: state.layer,
+      type: state.renderable.type,
+      frames: state.renderable.frames,
+      frame,
+      tint: state.renderable.tint,
+    });
   }
 
-  public setCulled(
-    entity: number,
-    culled: boolean,
-  ): void {
-    const object =
-      this.objects.get(
-        entity,
-      );
-
-    if (!object) {
-      return;
-    }
-
-    const visible =
-      !culled;
-
-    const previous =
-      this.states.get(
-        entity,
-      );
-
-    if (
-      previous &&
-      previous.visible ===
-        visible
-    ) {
-      return;
-    }
-
-    object.visible =
-      visible;
-
-    if (
-      previous
-    ) {
-      previous.visible =
-        visible;
-    }
-  }
-
-  public removeEntity(
-    entity: number,
-  ): void {
-    const object =
-      this.objects.get(
-        entity,
-      );
-
-    if (!object) {
-      return;
-    }
-
+  private destroyObject(entity: number, object: ContainerChild): void {
     object.removeFromParent();
     object.destroy();
+    this.objects.delete(entity);
+    this.states.delete(entity);
+  }
 
-    this.objects.delete(
-      entity,
-    );
-
-    this.states.delete(
-      entity,
-    );
+  public removeEntity(entity: number): void {
+    const object = this.objects.get(entity);
+    if (object) {
+      this.destroyObject(entity, object);
+    } else {
+      this.states.delete(entity);
+    }
   }
 
   public clear(): void {
-    for (
-      const object
-      of this.objects.values()
-    ) {
-      object.removeFromParent();
-      object.destroy();
+    for (const [entity, object] of this.objects) {
+      this.destroyObject(entity, object);
     }
-
+    for (const layerContainer of this.layerContainers.values()) {
+      layerContainer.removeFromParent();
+      layerContainer.destroy({ children: true });
+    }
+    this.layerContainers.clear();
     this.objects.clear();
     this.states.clear();
   }
 
-  public removeMissingEntities(
-    activeEntities: Set<number>,
-  ): void {
-    for (
-      const entity
-      of this.objects.keys()
-    ) {
-      if (
-        activeEntities.has(entity)
-      ) {
-        continue;
-      }
-
-      this.removeEntity(
-        entity,
-      );
+  public removeMissingEntities(activeEntities: Set<number>): void {
+    for (const entity of this.objects.keys()) {
+      if (!activeEntities.has(entity)) this.removeEntity(entity);
     }
   }
 

@@ -48,6 +48,10 @@ import {
   RenderSystem,
 } from '@/game/ecs/systems/rendering/RenderSystem';
 
+import {
+  gameConfig,
+} from '@/config/gameConfig';
+
 export class GameApp {
   public readonly app: Application;
   public readonly mapContainer: Container;
@@ -90,7 +94,7 @@ export class GameApp {
       resizeTo: window,
 
       backgroundColor:
-        0x0a0a0c,
+        gameConfig.rendering.backgroundColor,
 
       resolution:
         window.devicePixelRatio || 1,
@@ -120,9 +124,20 @@ export class GameApp {
       new CameraControl(
         this.mapContainer,
         {
-          minScale: 0.6,
-          maxScale: 1.8,
-          boundsRadius: 1200,
+          minScale:
+            gameConfig.camera.minScale,
+
+          maxScale:
+            gameConfig.camera.maxScale,
+
+          boundsRadius:
+            gameConfig.camera.boundsRadius,
+
+          moveSpeed:
+            gameConfig.camera.moveSpeed,
+
+          zoomStep:
+            gameConfig.camera.zoomStep,
         },
       );
 
@@ -146,7 +161,7 @@ export class GameApp {
       new RenderSystem(
         this.renderWorld,
         this.gameWorld.data.tileSize,
-        1,
+        gameConfig.rendering.cullingTiles,
       );
 
     const simulation =
@@ -158,8 +173,11 @@ export class GameApp {
       new GameLoop(
         simulation,
         {
-          updatesPerSecond: 20,
-          maxTicksPerFrame: 5,
+          updatesPerSecond:
+            gameConfig.simulation.updatesPerSecond,
+
+          maxTicksPerFrame:
+            gameConfig.simulation.maxTicksPerFrame,
         },
       );
 

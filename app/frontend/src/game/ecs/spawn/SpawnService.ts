@@ -1,19 +1,10 @@
-import type {
-  EcsEntity,
-  EcsWorldFacade,
-} from '../world/EcsWorld';
+import { gameConfig } from '@/config/gameConfig';
+import type { PrototypeType } from '@/prototypes/types';
+import type { EcsEntity, EcsWorldFacade } from '../world/EcsWorld';
 
 import {
-  PrototypeRegistry,
-} from '@/prototypes/registry/PrototypeRegistry';
-
-import {
-  isTilePrototype,
-} from '@/prototypes/types';
-
-import {
-  RenderType,
-} from '../components/rendering';
+  EntityFactory,
+} from './EntityFactory';
 
 export interface TileSpawnData {
   x: number;
@@ -27,93 +18,38 @@ export interface TileSpawnData {
 }
 
 export class SpawnService {
-  private readonly world: EcsWorldFacade;
+  private readonly factory:
+    EntityFactory;
 
   public constructor(
     world: EcsWorldFacade,
   ) {
-    this.world =
-      world;
+    this.factory =
+      new EntityFactory(world);
   }
 
   public spawnTile(
     data: TileSpawnData,
   ): EcsEntity {
-    const prototype =
-      PrototypeRegistry.get(
-        'tile',
-        data.prototypeId,
-      );
-
-    if (
-      !isTilePrototype(prototype)
-    ) {
-      throw new Error(
-        `[SpawnService] Prototype is not a tile: tile.${data.prototypeId}`,
-      );
-    }
-
-    const entity =
-      this.world.createEntity();
-
-    this.world.addPosition(
-      entity,
-      data.x,
-      data.y,
-    );
-
-    this.world.addPrototypeRef(
-      entity,
-      prototype.type,
-      prototype.id,
-    );
-
-    this.world.addVisualVariant(
-      entity,
-      data.variant ?? 0,
-    );
-
-    this.world.addRenderable(
-      entity,
-      {
-        type:
-          this.resolveRenderType(
-            prototype.render.type,
-          ),
-
-        visible:
-          true,
-
-        layer:
-          0,
-      },
-    );
-
-    return entity;
+    return this.factory.create({
+      type: 'tile',
+      id: data.prototypeId,
+      x: data.x,
+      y: data.y,
+      variant: data.variant,
+      layer:
+        gameConfig.rendering.defaultLayerByPrototypeType.tile,
+    });
   }
 
-  private resolveRenderType(
-    type:
-      | 'sprite'
-      | 'animated'
-      | 'container'
-      | undefined,
-  ) {
-    switch (type) {
-      case 'animated':
-        return RenderType.Animated;
-
-      case 'container':
-        return RenderType.Container;
-
-      case 'sprite':
-      case undefined:
-        return RenderType.Sprite;
-
-      default:
-        throw new Error(
-          `[SpawnService] Unknown render type: ${String(type)}`,
-        );
-    }
+  public spawn(data: {
+    type: PrototypeType;
+    id: string;
+    x: number;
+    y: number;
+    variant?: number;
+    layer?: number;
+  }): EcsEntity {
+    return this.factory.create(data);
   }
 }

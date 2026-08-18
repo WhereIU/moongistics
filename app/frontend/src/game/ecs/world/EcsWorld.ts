@@ -279,6 +279,21 @@ export class EcsWorldFacade {
     return VisualVariant.index[entity];
   }
 
+  public setVisualVariant(
+    entity: EcsEntity,
+    index: number,
+  ): void {
+    if (!this.hasVisualVariant(entity)) {
+      this.addVisualVariant(entity, index);
+    } else if (VisualVariant.index[entity] !== index) {
+      VisualVariant.index[entity] = index;
+    }
+
+    if (this.hasRenderable(entity)) {
+      this.markRenderDirty(entity);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Renderable
   // ---------------------------------------------------------------------------
@@ -351,6 +366,44 @@ export class EcsWorldFacade {
       layer:
         Renderable.layer[entity],
     };
+  }
+
+  public setRenderable(
+    entity: EcsEntity,
+    data: {
+      type?: RenderTypeId;
+      visible?: boolean;
+      layer?: number;
+    },
+  ): void {
+    if (!this.hasRenderable(entity)) {
+      this.addRenderable(entity, data as { type: RenderTypeId; visible?: boolean; layer?: number });
+      return;
+    }
+
+    let changed = false;
+
+    if (data.type !== undefined && Renderable.type[entity] !== data.type) {
+      Renderable.type[entity] = data.type;
+      changed = true;
+    }
+
+    if (data.visible !== undefined) {
+      const value = data.visible ? 1 : 0;
+      if (Renderable.visible[entity] !== value) {
+        Renderable.visible[entity] = value;
+        changed = true;
+      }
+    }
+
+    if (data.layer !== undefined && Renderable.layer[entity] !== data.layer) {
+      Renderable.layer[entity] = data.layer;
+      changed = true;
+    }
+
+    if (changed) {
+      this.markRenderDirty(entity);
+    }
   }
 
   public removeRenderable(

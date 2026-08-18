@@ -42,7 +42,6 @@ export class MovementSystem implements EcsSystem {
         Velocity.y[entity] *
         deltaSeconds;
 
-      world.markRenderDirty(entity);
     }
   }
 }

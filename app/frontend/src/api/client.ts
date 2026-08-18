@@ -10,8 +10,13 @@ export interface GameApi {
 /*
  * Временная реализация для разработки.
  *
- * Позже MockWorldApi здесь будет заменён
- * на HttpGameApi.
+ * Позже MockWorldApi здесь будет заменён HTTP-реализацией,
+ * которая будет обращаться к Django API. Интерфейс GameApi
+ * остаётся клиентской границей между игровым кодом и сервером.
  */
+export function createGameApi(): GameApi {
+  return new MockWorldApi();
+}
+
 export const gameApi: GameApi =
-  new MockWorldApi();
+  createGameApi();

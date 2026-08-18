@@ -182,6 +182,9 @@ export class RenderSystem {
 
         changed =
           true;
+
+        // The initial render state has consumed the dirty notification.
+        world.clearRenderDirty(entity);
       } else {
         changed =
           this.renderStateBuffer.updateTransform(
@@ -339,6 +342,15 @@ export class RenderSystem {
       if (!resolvedAnimation) {
         throw new Error(
           `[RenderSystem] Animation "${animation.id}" is not defined by the prototype.`,
+        );
+      }
+
+      if (
+        animation.frame < 0 ||
+        animation.frame >= resolvedAnimation.frames.length
+      ) {
+        throw new Error(
+          `[RenderSystem] Animation frame ${animation.frame} is outside the available range for \"${animation.id}\".`,
         );
       }
 
